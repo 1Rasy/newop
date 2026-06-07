@@ -12,19 +12,34 @@
     h2 { margin-top: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
     .p-tip { color: #756676; font-size: 14px; margin-bottom: 24px; }
     
-    /* 拖拽上传区域样式 */
-    .upload-box { border: 2px dashed #ebdfee; background: #faf9fb; padding: 40px 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s; position: relative; }
+    /* 修复后的点击/拖拽大方块 */
+    .upload-box { 
+      border: 2px dashed #ebdfee; 
+      background: #faf9fb; 
+      padding: 50px 20px; 
+      border-radius: 12px; 
+      cursor: pointer; 
+      transition: all 0.2s ease-in-out; 
+      position: relative; 
+    }
+    /* 拖拽文件到盒子上时触发的绿色高亮效果 */
+    .upload-box.dragover { 
+      border-color: #10b981 !important; 
+      background: #f0fdf4 !important; 
+    }
     .upload-box:hover { border-color: var(--primary); background: #fbf4fc; }
-    .upload-icon { font-size: 40px; margin-bottom: 10px; }
-    .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 44px; margin-bottom: 12px; pointer-events: none; }
     
-    .file-info { margin-top: 15px; font-size: 14px; font-weight: bold; color: #10b981; display: none; }
+    /* 隐蔽的真实文件控件，扩大到整个大方块 */
+    .file-input { 
+      position: absolute; 
+      top: 0; left: 0; width: 100%; height: 100%; 
+      opacity: 0; cursor: pointer; 
+    }
     
-    /* 导入按钮 */
-    .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(74,21,75,0.15); transition: opacity 0.2s; }
+    .file-info { margin-top: 20px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 14px; font-weight: bold; color: #047857; display: none; }
+    .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(74,21,75,0.15); }
     .btn-submit:disabled { background: #dcd6dd; cursor: not-allowed; box-shadow: none; }
-    
-    /* 状态遮罩 */
     .status-msg { margin-top: 15px; font-size: 14px; font-weight: 600; color: var(--primary); }
     .hide { display: none !important; }
   </style>
@@ -34,20 +49,19 @@
 <div class="container">
   <div class="card">
     <h2>📊 经销商出库单导入</h2>
-    <p class="p-tip">请直接上传经销商导出的原始 Excel 表格，系统将自动映射并流转至业务员车存库存。</p>
+    <p class="p-tip">请直接选择或拖拽经销商导出的原始 Excel 表格到下方方块中。</p>
     
     <div class="upload-box" id="dropZone">
       <div class="upload-icon">📁</div>
-      <div style="font-weight: 600; font-size: 15px;">点击或将原始 Excel 文件拖拽到此处</div>
-      <div style="font-size: 12px; color: #a195a2; margin-top: 5px;">支持 .xlsx, .xls 格式</div>
+      <div style="font-weight: 600; font-size: 15px; pointer-events: none;">点击区域选择文件，或将原始 Excel 拖到这里</div>
+      <div style="font-size: 12px; color: #a195a2; margin-top: 5px; pointer-events: none;">支持 .xlsx, .xls 格式</div>
       <input type="file" id="excelFile" class="file-input" accept=".xlsx, .xls">
     </div>
     
-    <div id="fileInfo" class="file-info">已选择文件: <span id="fileName"></span></div>
+    <div id="fileInfo" class="file-info">📌 已成功锁定文件: <span id="fileName"></span></div>
     
     <button id="submitBtn" class="btn-submit" disabled onclick="startImport()">🚀 确认一键导入数据库</button>
-    
-    <div id="statusMsg" class="status-msg hide">正在读取并转换表头映射...</div>
+    <div id="statusMsg" class="status-msg hide"></div>
   </div>
 </div>
 
@@ -55,35 +69,23 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ===================================================
-  // 1. 配置你的 Supabase 连接信息 (请替换为你自己的实际密钥)
-  // ===================================================
+  // ==========================================
+  // 🔗 务必换上你自己的 Supabase 实际密钥！
+  // ==========================================
   const SUPABASE_URL = "https://你的your-project-id.supabase.co";
   const SUPABASE_KEY = "你的anon-public-key";
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // ===================================================
-  // 2. 核心中间程序：中英字段名一一映射翻译字典
-  // ===================================================
+  // 中英表头翻译映射字典
   const FIELD_TRANSLATOR = {
-    "单号": "order_no",
-    "单据编号": "doc_no",
-    "制单日期": "bill_date",
-    "客户编号": "customer_code",
-    "客户": "customer_name",
-    "商品编号": "sku_code",
-    "条形码": "barcode",
-    "商品名称": "product_name",
-    "包装": "package_reg",
-    "件": "qty_piece",
-    "1": "amount_piece",
-    "散": "qty_scatter",
-    "2": "unit",
-    "3": "unit_price",
-    "折扣(%)": "discount",
-    "应收款": "total_amount"
+    "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
+    "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
+    "条形码": "barcode", "商品名称": "product_name", "包装": "package_reg",
+    "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
+    "2": "unit", "3": "unit_price", "折扣(%)": "discount", "应收款": "total_amount"
   };
 
+  const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('excelFile');
   const fileInfo = document.getElementById('fileInfo');
   const fileName = document.getElementById('fileName');
@@ -91,86 +93,97 @@
   const statusMsg = document.getElementById('statusMsg');
   let selectedFile = null;
 
-  // 监听文件选择变动
-  fileInput.addEventListener('change', function(e) {
-    if (e.target.files.length > 0) {
-      selectedFile = e.target.files[0];
-      fileName.innerText = selectedFile.name;
-      fileInfo.style.display = 'block';
-      submitBtn.disabled = false;
+  // 1. 📌 彻底修复的核心：接管拖拽事件，防止浏览器乱动
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+  });
+  function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+  // 2. 当文件拖入方块上方时，触发绿色高亮状态
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+  });
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+  });
+
+  // 3. 处理文件丢进来的动作
+  dropZone.addEventListener('drop', function(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      handleFileSelection(files[0]);
     }
   });
 
-  // 核心导入逻辑
+  // 4. 处理传统的点击选择文件动作
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+      handleFileSelection(e.target.files[0]);
+    }
+  });
+
+  // 5. 统一接收文件并更新前端界面的显示
+  function handleFileSelection(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      alert("⚠️ 格式错误！请务必上传经销商原始 Excel 表格文件（.xlsx 或 .xls）");
+      return;
+    }
+    selectedFile = file;
+    fileName.innerText = file.name;
+    fileInfo.style.display = 'block'; // 弹窗显示成功接收
+    submitBtn.disabled = false;      // 点亮紫色大按钮
+    statusMsg.classList.add('hide');
+  }
+
+  // 6. 点击确认按钮，开始执行解析与物理映射
   function startImport() {
     if (!selectedFile) return;
     
     submitBtn.disabled = true;
     statusMsg.classList.remove('hide');
-    statusMsg.innerText = "⏳ 正在读取 Excel 原始文档...";
+    statusMsg.innerText = "⏳ 正在解析原始 Excel 文档...";
 
     const reader = new FileReader();
     reader.onload = async function(e) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
+        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         
-        // 默认读取第一个工作表
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // 将 Excel 直接转成纯 JSON 原始数组 (此时键名全都是中文表头)
-        const rawRows = XLSX.utils.sheet_to_json(worksheet);
-        
-        if (rawRows.length === 0) {
-          throw new Error("Excel 文件内容为空，未检测到任何数据行！");
-        }
+        if (rawRows.length === 0) throw new Error("Excel 内部空空如也，未找到有效行！");
 
-        statusMsg.innerText = `⚙️ 正在执行物理映射转换 (共 ${rawRows.length} 条数据)...`;
+        statusMsg.innerText = `⚙️ 中间映射程序正在切换规范表头 (${rawRows.length}行)...`;
 
-        // 🧠 核心映射程序：1毫秒纯物理翻译，给数据换上符合 Supabase 规范的英文外壳
-        const importBatchId = "BATCH_" + Date.now(); // 生成本次上传的唯一批次号
+        const batchId = "BATCH_" + Date.now();
         const safePayloads = rawRows.map(row => {
-          let newRow = {
-            import_batch_id: importBatchId,
-            is_processed: false
-          };
-          // 遍历 Excel 的中文表头，如果字典里有定义，直接将其平移到英文属性上
+          let newRow = { import_batch_id: batchId, is_processed: false };
           for (let chineseKey in row) {
             const englishKey = FIELD_TRANSLATOR[chineseKey.trim()];
-            if (englishKey) {
-              newRow[englishKey] = row[chineseKey];
-            }
+            if (englishKey) newRow[englishKey] = row[chineseKey];
           }
           return newRow;
         });
 
-        statusMsg.innerText = `🚀 正在向 Supabase 批量砸入规整数据...`;
+        statusMsg.innerText = `🚀 正在全速录入 Supabase 数据库...`;
 
-        // 将换好规范英文外壳的数据一次性倒入 Supabase
-        const { data: insertData, error } = await supabase
-          .from('raw_dealer_outbounds')
-          .insert(safePayloads);
-
+        const { error } = await supabase.from('raw_dealer_outbounds').insert(safePayloads);
         if (error) throw error;
 
-        // 导入成功
-        statusMsg.innerText = `✅ 导入圆满成功！`;
-        alert(`🎉 恭喜！成功无痛导入 ${safePayloads.length} 条原始记录！\nSupabase 已经在云端异步为你筛选车销人员并核算补货库存。`);
+        statusMsg.innerText = `✅ 成功导入数据库！`;
+        alert(`🎉 大功告成！已成功无痛映射并导入 ${safePayloads.length} 条数据！`);
         
-        // 重置状态
-        fileInput.value = '';
+        // 重置清空
         fileInfo.style.display = 'none';
         selectedFile = null;
-
       } catch (err) {
         console.error(err);
-        statusMsg.innerText = `❌ 发生错误`;
-        alert(`导入中途崩溃，原因：${err.message || '请检查数据库连接及表格表头规范。'}`);
+        statusMsg.innerText = `❌ 导入失败`;
+        alert(`中途卡死，报错原因: ${err.message || '请检查表头或Supabase连接。'}`);
         submitBtn.disabled = false;
       }
     };
-
     reader.readAsArrayBuffer(selectedFile);
   }
 </script>
