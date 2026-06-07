@@ -72,10 +72,8 @@
   const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co"; 
   const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG"; 
 
-  // 🛡️ 实例初始化
   window.mySupabaseInstance = (SUPABASE_URL && SUPABASE_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
-  // 安全清洗后的映射字典（移除了折扣列里可能引发编码崩溃的括号字符）
   const SAFE_FIELD_TRANSLATOR = {
     "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
     "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
@@ -83,6 +81,12 @@
     "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
     "2": "unit", "3": "unit_price", "折扣": "discount", "应收款": "total_amount"
   };
+
+  // 📝 明确哪些字段在 Supabase 里是数字类型，需要特殊洗礼
+  const NUMERIC_FIELDS = [
+    "package_reg", "qty_piece", "amount_piece", "qty_scatter", 
+    "unit_price", "discount", "total_amount"
+  ];
 
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('excelFile');
@@ -129,7 +133,7 @@
   function startImport() {
     if (!selectedFile) return;
     if (!window.mySupabaseInstance) {
-      alert("⚠️ 检测到你尚未在代码第 71-72 行填写真实的 Supabase URL 和 KEY，请填写后再提交！");
+      alert("⚠️ 检测到你尚未在代码第 71-72 行填写真实的 Supabase URL 和 KEY！");
       submitBtn.disabled = false;
       return;
     }
@@ -147,20 +151,41 @@
         
         if (rawRows.length === 0) throw new Error("Excel 内部没有检测到任何有效行！");
 
-        statusMsg.innerText = `⚙️ 安全清洗程序正在过滤字符并转换表头 (${rawRows.length}行)...`;
+        statusMsg.innerText = `⚙️ 正在清洗数据并转换表头格式 (${rawRows.length}行)...`;
 
         const batchId = "BATCH_" + Date.now();
         const safePayloads = rawRows.map(row => {
           let newRow = { import_batch_id: batchId, is_processed: false };
+          
           for (let chineseKey in row) {
-            // 🛡️ 核心修复：强行剔除表头里的空格、特殊符号以及各种中英文括号，确保安全
             let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
-            
             const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
+            
             if (englishKey) {
-              newRow[englishKey] = row[chineseKey];
+              let val = row[chineseKey];
+              
+              // 🛡️ 【核心修复】：如果这个字段是数字类型，处理掉所有的空字符串嫌疑
+              if (NUMERIC_FIELDS.includes(englishKey)) {
+                if (val === "" || val === undefined || val === null || String(val).trim() === "") {
+                  newRow[englishKey] = 0; // 强行转换为数字 0，符合数据库 numeric 规范
+                } else {
+                  newRow[englishKey] = Number(val); // 确保强转为真实数字类型，而不是带引号的文本
+                }
+              } else {
+                // 普通文本字段正常赋值
+                newRow[englishKey] = val;
+              }
             }
           }
+          
+          // 🛡️ 补缺机制：如果 Excel 里根本没写某几列（比如整箱出库时没写“散”这一列），
+          // 循环根本不会走到那个 key，这里要确保把未定义的数字列全部用 0 垫底
+          NUMERIC_FIELDS.forEach(numKey => {
+            if (newRow[numKey] === undefined) {
+              newRow[numKey] = 0;
+            }
+          });
+
           return newRow;
         });
 
