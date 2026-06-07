@@ -69,123 +69,90 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ==========================================
-  // 🔗 务必换上你自己的 Supabase 实际密钥！
-  // ==========================================
-  const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co";
-  const SUPABASE_KEY = "sb_secret_0_K0kz2vC3SiXY87Ueef8w_gIrjxfrg";
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('excelFile');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const submitBtn = document.getElementById('submitBtn');
+const statusMsg = document.getElementById('statusMsg');
 
-  // 中英表头翻译映射字典
-  const FIELD_TRANSLATOR = {
-    "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
-    "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
-    "条形码": "barcode", "商品名称": "product_name", "包装": "package_reg",
-    "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
-    "2": "unit", "3": "unit_price", "折扣(%)": "discount", "应收款": "total_amount"
-  };
+let selectedFile = null;
 
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('excelFile');
-  const fileInfo = document.getElementById('fileInfo');
-  const fileName = document.getElementById('fileName');
-  const submitBtn = document.getElementById('submitBtn');
-  const statusMsg = document.getElementById('statusMsg');
-  let selectedFile = null;
+// 阻止浏览器默认拖拽行为
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, preventDefaults, false);
+});
 
-  // 1. 📌 彻底修复的核心：接管拖拽事件，防止浏览器乱动
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
+function preventDefaults(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+// 拖拽高亮
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.add('dragover');
   });
-  function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+});
 
-  // 2. 当文件拖入方块上方时，触发绿色高亮状态
-  ['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.remove('dragover');
   });
-  ['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-  });
+});
 
-  // 3. 处理文件丢进来的动作
-  dropZone.addEventListener('drop', function(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length > 0) {
-      handleFileSelection(files[0]);
-    }
-  });
+// 拖拽上传
+dropZone.addEventListener('drop', e => {
+  const files = e.dataTransfer.files;
 
-  // 4. 处理传统的点击选择文件动作
-  fileInput.addEventListener('change', function(e) {
-    if (e.target.files.length > 0) {
-      handleFileSelection(e.target.files[0]);
-    }
-  });
+  if(files.length){
+    handleFileSelection(files[0]);
+  }
+});
 
-  // 5. 统一接收文件并更新前端界面的显示
-  function handleFileSelection(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'xlsx' && ext !== 'xls') {
-      alert("⚠️ 格式错误！请务必上传经销商原始 Excel 表格文件（.xlsx 或 .xls）");
-      return;
-    }
-    selectedFile = file;
-    fileName.innerText = file.name;
-    fileInfo.style.display = 'block'; // 弹窗显示成功接收
-    submitBtn.disabled = false;      // 点亮紫色大按钮
-    statusMsg.classList.add('hide');
+// 点击上传
+fileInput.addEventListener('change', e => {
+  if(e.target.files.length){
+    handleFileSelection(e.target.files[0]);
+  }
+});
+
+function handleFileSelection(file){
+
+  console.log("收到文件：", file);
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if(ext !== 'xlsx' && ext !== 'xls'){
+    alert("请上传Excel文件");
+    return;
   }
 
-  // 6. 点击确认按钮，开始执行解析与物理映射
-  function startImport() {
-    if (!selectedFile) return;
-    
-    submitBtn.disabled = true;
-    statusMsg.classList.remove('hide');
-    statusMsg.innerText = "⏳ 正在解析原始 Excel 文档...";
+  selectedFile = file;
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        
-        if (rawRows.length === 0) throw new Error("Excel 内部空空如也，未找到有效行！");
+  fileName.textContent = file.name;
 
-        statusMsg.innerText = `⚙️ 中间映射程序正在切换规范表头 (${rawRows.length}行)...`;
+  fileInfo.style.display = 'block';
 
-        const batchId = "BATCH_" + Date.now();
-        const safePayloads = rawRows.map(row => {
-          let newRow = { import_batch_id: batchId, is_processed: false };
-          for (let chineseKey in row) {
-            const englishKey = FIELD_TRANSLATOR[chineseKey.trim()];
-            if (englishKey) newRow[englishKey] = row[chineseKey];
-          }
-          return newRow;
-        });
+  submitBtn.disabled = false;
 
-        statusMsg.innerText = `🚀 正在全速录入 Supabase 数据库...`;
+  statusMsg.classList.add('hide');
+}
 
-        const { error } = await supabase.from('raw_dealer_outbounds').insert(safePayloads);
-        if (error) throw error;
+function startImport(){
 
-        statusMsg.innerText = `✅ 成功导入数据库！`;
-        alert(`🎉 大功告成！已成功无痛映射并导入 ${safePayloads.length} 条数据！`);
-        
-        // 重置清空
-        fileInfo.style.display = 'none';
-        selectedFile = null;
-      } catch (err) {
-        console.error(err);
-        statusMsg.innerText = `❌ 导入失败`;
-        alert(`中途卡死，报错原因: ${err.message || '请检查表头或Supabase连接。'}`);
-        submitBtn.disabled = false;
-      }
-    };
-    reader.readAsArrayBuffer(selectedFile);
+  if(!selectedFile){
+    alert("请先选择文件");
+    return;
   }
+
+  statusMsg.classList.remove('hide');
+
+  statusMsg.innerText =
+    "✅ 文件已成功读取：" + selectedFile.name;
+
+  console.log(selectedFile);
+}
 </script>
 </body>
 </html>
