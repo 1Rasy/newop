@@ -12,7 +12,6 @@
     h2 { margin-top: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
     .p-tip { color: #756676; font-size: 14px; margin-bottom: 24px; }
     
-    /* 点击与拖拽的大方块 */
     .upload-box { 
       border: 2px dashed #ebdfee; 
       background: #faf9fb; 
@@ -22,7 +21,6 @@
       transition: all 0.2s ease-in-out; 
       position: relative; 
     }
-    /* 拖拽文件到盒子上时触发的绿色高亮效果 */
     .upload-box.dragover { 
       border-color: #10b981 !important; 
       background: #f0fdf4 !important; 
@@ -30,7 +28,6 @@
     .upload-box:hover { border-color: var(--primary); background: #fbf4fc; }
     .upload-icon { font-size: 44px; margin-bottom: 12px; pointer-events: none; }
     
-    /* 隐蔽的真实文件控件，扩大到整个大方块 */
     .file-input { 
       position: absolute; 
       top: 0; left: 0; width: 100%; height: 100%; 
@@ -69,22 +66,22 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ==========================================
-  // 🔗 请把这里换成你自己的 Supabase 实际密钥！
-  // ==========================================
-  const SUPABASE_URL = "https://你的your-project-id.supabase.co";
-  const SUPABASE_KEY = "你的anon-public-key";
-  
-  // 🛡️ 彻底修复：使用不冲突的专属客户端变量名
-  window.mySupabaseInstance = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // ===================================================
+  // 🔗 请在下方双引号中填入你项目真实的 Supabase 密钥
+  // ===================================================
+  const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co"; 
+  const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG"; 
 
-  // 中英表头翻译映射字典
-  const FIELD_TRANSLATOR = {
+  // 🛡️ 实例初始化
+  window.mySupabaseInstance = (SUPABASE_URL && SUPABASE_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  // 安全清洗后的映射字典（移除了折扣列里可能引发编码崩溃的括号字符）
+  const SAFE_FIELD_TRANSLATOR = {
     "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
     "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
     "条形码": "barcode", "商品名称": "product_name", "包装": "package_reg",
     "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
-    "2": "unit", "3": "unit_price", "折扣(%)": "discount", "应收款": "total_amount"
+    "2": "unit", "3": "unit_price", "折扣": "discount", "应收款": "total_amount"
   };
 
   const dropZone = document.getElementById('dropZone');
@@ -95,13 +92,11 @@
   const statusMsg = document.getElementById('statusMsg');
   let selectedFile = null;
 
-  // 接管拖拽事件，防止浏览器拦截默认行为
   ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropZone.addEventListener(eventName, preventDefaults, false);
   });
   function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
-  // 当文件拖入方块上方时高亮
   ['dragenter', 'dragover'].forEach(eventName => {
     dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
   });
@@ -109,23 +104,15 @@
     dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
   });
 
-  // 接收拖拽进来的文件
   dropZone.addEventListener('drop', function(e) {
     const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length > 0) {
-      handleFileSelection(files[0]);
-    }
+    if (dt.files.length > 0) handleFileSelection(dt.files[0]);
   });
 
-  // 接收常规点击选择的文件
   fileInput.addEventListener('change', function(e) {
-    if (e.target.files.length > 0) {
-      handleFileSelection(e.target.files[0]);
-    }
+    if (e.target.files.length > 0) handleFileSelection(e.target.files[0]);
   });
 
-  // 更新界面文件锁定状态
   function handleFileSelection(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext !== 'xlsx' && ext !== 'xls') {
@@ -139,9 +126,13 @@
     statusMsg.classList.add('hide');
   }
 
-  // 开始解析并批量导入
   function startImport() {
     if (!selectedFile) return;
+    if (!window.mySupabaseInstance) {
+      alert("⚠️ 检测到你尚未在代码第 71-72 行填写真实的 Supabase URL 和 KEY，请填写后再提交！");
+      submitBtn.disabled = false;
+      return;
+    }
     
     submitBtn.disabled = true;
     statusMsg.classList.remove('hide');
@@ -156,28 +147,31 @@
         
         if (rawRows.length === 0) throw new Error("Excel 内部没有检测到任何有效行！");
 
-        statusMsg.innerText = `⚙️ 中间映射程序正在切换规范表头 (${rawRows.length}行)...`;
+        statusMsg.innerText = `⚙️ 安全清洗程序正在过滤字符并转换表头 (${rawRows.length}行)...`;
 
         const batchId = "BATCH_" + Date.now();
         const safePayloads = rawRows.map(row => {
           let newRow = { import_batch_id: batchId, is_processed: false };
           for (let chineseKey in row) {
-            const englishKey = FIELD_TRANSLATOR[chineseKey.trim()];
-            if (englishKey) newRow[englishKey] = row[chineseKey];
+            // 🛡️ 核心修复：强行剔除表头里的空格、特殊符号以及各种中英文括号，确保安全
+            let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
+            
+            const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
+            if (englishKey) {
+              newRow[englishKey] = row[chineseKey];
+            }
           }
           return newRow;
         });
 
         statusMsg.innerText = `🚀 正在全速录入 Supabase 数据库...`;
 
-        // 🛡️ 彻底修复：使用修正后的实例名字提交
         const { error } = await window.mySupabaseInstance.from('raw_dealer_outbounds').insert(safePayloads);
         if (error) throw error;
 
         statusMsg.innerText = `✅ 成功导入数据库！`;
-        alert(`🎉 成功！已顺利通过中间映射程序导入 ${safePayloads.length} 条原始记录！`);
+        alert(`🎉 成功！已顺利通过中间安全映射程序导入 ${safePayloads.length} 条原始记录！`);
         
-        // 重置清空
         fileInfo.style.display = 'none';
         selectedFile = null;
       } catch (err) {
