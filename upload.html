@@ -12,7 +12,7 @@
     h2 { margin-top: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
     .p-tip { color: #756676; font-size: 14px; margin-bottom: 24px; }
     
-    /* 修复后的点击/拖拽大方块 */
+    /* 点击与拖拽的大方块 */
     .upload-box { 
       border: 2px dashed #ebdfee; 
       background: #faf9fb; 
@@ -38,7 +38,7 @@
     }
     
     .file-info { margin-top: 20px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 14px; font-weight: bold; color: #047857; display: none; }
-    .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(74,21,75,0.15); }
+    .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(74,21,75,0.15); transition: opacity 0.2s; }
     .btn-submit:disabled { background: #dcd6dd; cursor: not-allowed; box-shadow: none; }
     .status-msg { margin-top: 15px; font-size: 14px; font-weight: 600; color: var(--primary); }
     .hide { display: none !important; }
@@ -70,11 +70,13 @@
 
 <script>
   // ==========================================
-  // 🔗 务必换上你自己的 Supabase 实际密钥！
+  // 🔗 请把这里换成你自己的 Supabase 实际密钥！
   // ==========================================
-  const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG";
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = "https://你的your-project-id.supabase.co";
+  const SUPABASE_KEY = "你的anon-public-key";
+  
+  // 🛡️ 彻底修复：使用不冲突的专属客户端变量名
+  window.mySupabaseInstance = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // 中英表头翻译映射字典
   const FIELD_TRANSLATOR = {
@@ -93,13 +95,13 @@
   const statusMsg = document.getElementById('statusMsg');
   let selectedFile = null;
 
-  // 1. 📌 彻底修复的核心：接管拖拽事件，防止浏览器乱动
+  // 接管拖拽事件，防止浏览器拦截默认行为
   ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropZone.addEventListener(eventName, preventDefaults, false);
   });
   function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
-  // 2. 当文件拖入方块上方时，触发绿色高亮状态
+  // 当文件拖入方块上方时高亮
   ['dragenter', 'dragover'].forEach(eventName => {
     dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
   });
@@ -107,7 +109,7 @@
     dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
   });
 
-  // 3. 处理文件丢进来的动作
+  // 接收拖拽进来的文件
   dropZone.addEventListener('drop', function(e) {
     const dt = e.dataTransfer;
     const files = dt.files;
@@ -116,14 +118,14 @@
     }
   });
 
-  // 4. 处理传统的点击选择文件动作
+  // 接收常规点击选择的文件
   fileInput.addEventListener('change', function(e) {
     if (e.target.files.length > 0) {
       handleFileSelection(e.target.files[0]);
     }
   });
 
-  // 5. 统一接收文件并更新前端界面的显示
+  // 更新界面文件锁定状态
   function handleFileSelection(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext !== 'xlsx' && ext !== 'xls') {
@@ -132,12 +134,12 @@
     }
     selectedFile = file;
     fileName.innerText = file.name;
-    fileInfo.style.display = 'block'; // 弹窗显示成功接收
-    submitBtn.disabled = false;      // 点亮紫色大按钮
+    fileInfo.style.display = 'block'; 
+    submitBtn.disabled = false;      
     statusMsg.classList.add('hide');
   }
 
-  // 6. 点击确认按钮，开始执行解析与物理映射
+  // 开始解析并批量导入
   function startImport() {
     if (!selectedFile) return;
     
@@ -152,7 +154,7 @@
         const workbook = XLSX.read(data, { type: 'array' });
         const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         
-        if (rawRows.length === 0) throw new Error("Excel 内部空空如也，未找到有效行！");
+        if (rawRows.length === 0) throw new Error("Excel 内部没有检测到任何有效行！");
 
         statusMsg.innerText = `⚙️ 中间映射程序正在切换规范表头 (${rawRows.length}行)...`;
 
@@ -168,11 +170,12 @@
 
         statusMsg.innerText = `🚀 正在全速录入 Supabase 数据库...`;
 
-        const { error } = await supabase.from('raw_dealer_outbounds').insert(safePayloads);
+        // 🛡️ 彻底修复：使用修正后的实例名字提交
+        const { error } = await window.mySupabaseInstance.from('raw_dealer_outbounds').insert(safePayloads);
         if (error) throw error;
 
         statusMsg.innerText = `✅ 成功导入数据库！`;
-        alert(`🎉 大功告成！已成功无痛映射并导入 ${safePayloads.length} 条数据！`);
+        alert(`🎉 成功！已顺利通过中间映射程序导入 ${safePayloads.length} 条原始记录！`);
         
         // 重置清空
         fileInfo.style.display = 'none';
@@ -180,7 +183,7 @@
       } catch (err) {
         console.error(err);
         statusMsg.innerText = `❌ 导入失败`;
-        alert(`中途卡死，报错原因: ${err.message || '请检查表头或Supabase连接。'}`);
+        alert(`导入出错，原因: ${err.message || '请检查表头或 Supabase 配置。'}`);
         submitBtn.disabled = false;
       }
     };
