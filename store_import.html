@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>专属车销门店资产提取系统</title>
+  <title>专属车销门店资产提取系统（前端版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     :root { --primary: #0284c7; --bg-main: #f0f9ff; --card-bg: #ffffff; }
@@ -17,15 +17,15 @@
     .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
     .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(2,132,199,0.2); }
     .btn-submit:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
-    .status { margin-top: 15px; font-size: 14px; color: #0369a1; font-weight: bold; }
+    .status { margin-top: 15px; font-size: 14px; color: #0369a1; font-weight: bold; min-height: 20px; }
   </style>
 </head>
 <body>
 
 <div class="container">
   <div class="card">
-    <h2>🏢 专属车销门店资产提取</h2>
-    <p class="p-tip">请拖入大厂导出的完整原始门店数据表。系统将对照系统内的特殊员工白名单，自动提取并生成工号对应的门店资产表。</p>
+    <h2>🏢 专属车销门店资产提取（前端智能版）</h2>
+    <p class="p-tip">直接拖入大厂导出的完整原始门店数据表。本页面将在本地通过白名单高速清洗，并在保存时自动全量覆盖旧数据。</p>
     
     <div class="upload-box" id="dropZone">
       <div style="font-size: 44px; margin-bottom: 10px;">📊</div>
@@ -33,8 +33,8 @@
       <input type="file" id="excelFile" class="file-input" accept=".xlsx, .xls">
     </div>
     
-    <div id="status" class="status"></div>
-    <button id="submitBtn" class="btn-submit" disabled onclick="sendToSupabaseBackend()">🚀 执行白名单清洗并提取至新表</button>
+    <div id="status" class="status">正在初始化系统，请稍候...</div>
+    <button id="submitBtn" class="btn-submit" disabled onclick="executeFrontendWash()">🚀 执行本地白名单清洗并覆盖导入</button>
   </div>
 </div>
 
@@ -51,7 +51,31 @@
   const fileInput = document.getElementById('excelFile');
   const submitBtn = document.getElementById('submitBtn');
   const statusDiv = document.getElementById('status');
+  
   let rawExcelRows = null;
+  let employeeWhitelist = new Set(); // 核心：使用 Set 建立 O(1) 极速拦截字典
+
+  // 页面初始化：先偷偷去后台捞取特殊的员工白名单工号
+  async function initWhitelist() {
+    if (!client) {
+      statusDiv.innerText = "❌ 尚未配置 Supabase 密钥";
+      return;
+    }
+    try {
+      const { data, error } = await client.from('employees').select('employee_code');
+      if (error) throw error;
+      
+      data.forEach(emp => {
+        if (emp.employee_code) employeeWhitelist.add(String(emp.employee_code).trim());
+      });
+      
+      statusDiv.innerText = `💡 专属白名单加载成功！当前系统已锁定 [${employeeWhitelist.size}] 名特殊业务员。`;
+    } catch (err) {
+      console.error(err);
+      statusDiv.innerText = "❌ 白名单加载失败，请检查 employees 表是否存在";
+    }
+  }
+  window.onload = initWhitelist;
 
   // 阻断浏览器默认行为
   ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(n => dropZone.addEventListener(n, e => e.preventDefault(), false));
@@ -66,42 +90,91 @@
     if (e.target.files.length > 0) processExcelFile(e.target.files[0]);
   });
 
-  // 读取 Excel 转为全量原始 JSON，网页不承担清洗过滤的计算工作
+  // 本地极速解析 Excel
   function processExcelFile(file) {
-    statusDiv.innerText = "⏳ 正在读取本地大表格...";
+    if (employeeWhitelist.size === 0) {
+      alert("⚠️ 白名单为空！请先去 Supabase 的 employees 表里添加你的特殊车销人员工号！");
+      return;
+    }
+    statusDiv.innerText = "⏳ 正在本地解析一万条数据，请勿关闭网页...";
     const reader = new FileReader();
     reader.onload = function(e) {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       rawExcelRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
       
-      statusDiv.innerText = `📂 成功装载！共 ${rawExcelRows.length} 行原始数据，等待提取`;
+      statusDiv.innerText = `📂 成功装载！共 ${rawExcelRows.length} 行原始数据，等待白名单拦截`;
       submitBtn.disabled = false;
     };
     reader.readAsArrayBuffer(file);
   }
 
-  // 🚀 发送给 Supabase 后端过程
-  async function sendToSupabaseBackend() {
+  // 🚀 执行前端清洗、清空旧资产、写入新资产三连击
+  async function executeFrontendWash() {
     if (!rawExcelRows || !client) return;
     submitBtn.disabled = true;
-    statusDiv.innerText = "⚡ 正在投递全量原始数据，由后台白名单机制筛选提取...";
+    statusDiv.innerText = "⚡ 正在执行本地毫秒级比对...";
+
+    // 1. 【前端闪电战】：利用字典拦截清洗一万条数据
+    let safePayloads = [];
+    let seenStoreCodes = new Set(); // 顺便在前端做个去重，防止 Excel 里面有两行一模一样的门店
+
+    rawExcelRows.forEach(row => {
+      let rawEmpCode = row['门店负责人员工号'];
+      let rawStoreCode = row['ATOM门店编号'];
+      let rawStoreName = row['门店名称'];
+
+      if (rawEmpCode && rawStoreCode && rawStoreName) {
+        let cleanEmpCode = String(rawEmpCode).trim().replace(/[\"\']/g, "");
+        let cleanStoreCode = String(rawStoreCode).trim().replace(/[\"\']/g, "");
+
+        // 🎯 核心防线：如果在白名单集合里，并且这个门店还没处理过
+        if (employeeWhitelist.has(cleanEmpCode) && !seenStoreCodes.has(cleanStoreCode)) {
+          seenStoreCodes.add(cleanStoreCode);
+          safePayloads.push({
+            employee_code: cleanEmpCode,
+            customer_code: cleanStoreCode,
+            customer_name: String(rawStoreName).trim()
+          });
+        }
+      }
+    });
+
+    statusDiv.innerText = `🔍 比对完成！从一万条中清洗出 ${safePayloads.length} 个属于我方业务员的有效门店。正在全量覆盖更新数据库...`;
 
     try {
-      // 隔空高空抛物砸给 RPC 函数
-      const { data, error } = await client.rpc('import_filtered_store_assets', { 
-        p_raw_excel_json: rawExcelRows 
-      });
+      // 2. ⚡【覆盖机制】：先删掉整个白名单里所有人名下的旧门店资产
+      const empCodeArr = Array.from(employeeWhitelist);
+      const { error: deleteError } = await client
+        .from('employee_store_assets')
+        .delete()
+        .in('employee_code', empCodeArr);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
-      statusDiv.innerText = "✅ 提取并落盘成功！";
-      alert(`🎉 提取完毕！\n系统已自动比对白名单，精准提取了【${data.matched_count}】家属于我方特殊业务员的门店放入了新表中！`);
-      submitBtn.disabled = false;
+      // 3. 【全新写入】：如果没有清洗出有效门店，直接结束
+      if (safePayloads.length === 0) {
+        statusDiv.innerText = "✅ 数据已清空（本次大表中我方业务员名下无门店）";
+        alert("🎉 更新完毕！本次大表中未发现我方特殊业务员的门店，系统已同步清空资产表！");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      // 如果有有效数据，一次性批量往里塞
+      const { error: insertError } = await client
+        .from('employee_store_assets')
+        .insert(safePayloads);
+
+      if (insertError) throw insertError;
+
+      statusDiv.innerText = `✅ 资产全量覆盖成功！最新落盘 [${safePayloads.length}] 家门店！`;
+      alert(`🎉 纯前端清洗成功！\n系统已为您剔除闲杂人员，并将最新的【${safePayloads.length}】家专属车销门店覆盖同步至系统！`);
+      
     } catch (err) {
       console.error(err);
-      statusDiv.innerText = "❌ 提取失败";
-      alert(`提取出错: ${err.message}`);
+      statusDiv.innerText = "❌ 覆盖落盘失败，请查看控制台报错";
+      alert(`更新出错: ${err.message}`);
+    } finally {
       submitBtn.disabled = false;
     }
   }
