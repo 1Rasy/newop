@@ -468,14 +468,10 @@ function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
   return html;
 }
 
-// ==========================================
-// 核心补全：实现库存管理主界面的渲染模版函数
-// ==========================================
 function renderStockPage(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
   
-  // 过滤当前选定品牌和规格的商品
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
 
   document.getElementById('list').innerHTML = `
@@ -485,7 +481,6 @@ function renderStockPage(){
       const specCase = p.pcs_per_case || 24; 
       const specBox = p.pcs_per_box || 0;
       
-      // 获取当前产品的总数，采用强行转 Number 进行容错，防 Supabase 的 Int 与 JS 字符串冲突
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
       const formattedStockText = formatQtyToUnits(totalPcs, specCase, specBox);
 
@@ -536,7 +531,6 @@ async function submitStock(){
   let hasData = false; const updates = []; 
 
   for(let id of addIds){
-    // 使用严格类型或双等进行多重兼容查找
     const p = products.find(x => String(x.id) === String(id));
     if(!p) continue;
     const specCase = p.pcs_per_case || 24; 
@@ -947,6 +941,8 @@ function calculateLiveOrderAmounts() {
 
 function renderOrder(){
   STATE = 'ORDER';
+  
+  // 💡 核心修改点：开单列表完全根据当前选中的大筛选（Brand）和小筛选（Spec）动态过滤商品
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
   const isTemp = String(orderData.atom).startsWith('NEW_');
 
@@ -1064,7 +1060,7 @@ async function submitOrder(){
   });
 
   if (grandTotalQty === 0) {
-    alert("⚠️ 订单中没有填写任何有效的销售、赠送 or 收回数量，无法提交空白单据！");
+    alert("⚠️ 订单中没有填写 any 有效的销售、赠送 or 收回数量，无法提交空白单据！");
     return;
   }
 
