@@ -1,508 +1,1184 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>车销库存与门店管理系统</title>
-    <!-- 引入 Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: #f5f5f7; color: #333; padding-bottom: 60px; -webkit-user-select: none; user-select: none; }
-        
-        /* 顶部导航栏 */
-        .navbar { position: sticky; top: 0; background-color: #ffffff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e5ea; z-index: 1000; height: 54px; }
-        .nav-left { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
-        .nav-right { font-size: 14px; color: #007aff; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-        .back-btn { cursor: pointer; color: #007aff; padding: 4px 8px; margin-left: -8px; display: flex; align-items: center; }
-        .back-btn.hide { display: none !important; }
-        
-        /* 状态标签 */
-        .state-badge { background-color: #e5e5ea; color: #666; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: normal; }
-        .state-badge.edit { background-color: #ff9500; color: #fff; }
-        .state-badge.hide { display: none !important; }
-
-        /* 搜索栏样式 */
-        .search-block { padding: 8px 16px; background-color: #fff; border-bottom: 1px solid #e5e5ea; display: flex; gap: 8px; position: sticky; top: 54px; z-index: 999; }
-        .search-block.hide { display: none !important; }
-        .search-input { flex: 1; padding: 8px 12px; border: 1px solid #c7c7cc; border-radius: 8px; font-size: 14px; outline: none; background-color: #f2f2f7; }
-        .search-input:focus { background-color: #fff; border-color: #007aff; }
-
-        /* 列表容器 */
-        .list-container { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
-        
-        /* 通用卡片布局 */
-        .item-card { background: #fff; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #efeff4; transition: background-color 0.2s; }
-        .item-card:active { background-color: #f2f2f7; }
-        .item-title { font-size: 16px; font-weight: 500; color: #1c1c1e; }
-        .item-subtitle { font-size: 13px; color: #8e8e93; margin-top: 2px; }
-        .arrow-icon { color: #c7c7cc; font-size: 16px; }
-
-        /* 库存管理专有布局 */
-        .stock-header-actions { display: flex; justify-content: space-between; align-items: center; padding: 4px 0 8px; background: #f5f5f7; position: sticky; top: 54px; z-index: 998; }
-        .filter-select { padding: 6px 12px; border-radius: 8px; border: 1px solid #c7c7cc; background: #fff; font-size: 13px; outline: none; max-width: 48%; }
-        
-        .stock-card { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #efeff4; }
-        .stock-info { margin-bottom: 10px; }
-        .stock-name { font-size: 15px; font-weight: 600; color: #1c1c1e; line-height: 1.4; }
-        .stock-meta { font-size: 12px; color: #8e8e93; margin-top: 4px; display: flex; gap: 10px; }
-        .stock-current-badge { background-color: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 500; margin-top: 6px; display: inline-block; }
-        
-        /* 变更计算器计数器 */
-        .counter-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; }
-        .counter-label { font-size: 13px; color: #48484a; }
-        .counter-ctrl { display: flex; align-items: center; gap: 4px; }
-        .btn-minus, .btn-plus { width: 32px; height: 32px; border-radius: 16px; border: 1px solid #c7c7cc; background: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #007aff; }
-        .btn-minus:active, .btn-plus:active { background: #f2f2f7; }
-        .counter-val { min-width: 36px; text-align: center; font-size: 15px; font-weight: 600; }
-        
-        .dir-toggle { display: inline-flex; border-radius: 6px; overflow: hidden; border: 1px solid #007aff; margin-left: 8px; }
-        .dir-btn { padding: 4px 10px; font-size: 12px; background: #fff; color: #007aff; cursor: pointer; }
-        .dir-btn.active { background: #007aff; color: #fff; }
-
-        /* 底部固定动作栏 */
-        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #fff; border-top: 1px solid #e5e5ea; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 1001; }
-        .bottom-btn { flex: 1; height: 44px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn-secondary { background-color: #f2f2f7; color: #007aff; margin-right: 12px; }
-        .btn-primary { background-color: #007aff; color: #fff; }
-        .btn-primary:active { background-color: #0056b3; }
-
-        /* 字母侧边栏（按需保留） */
-        .alphabet-sidebar { position: fixed; right: 4px; top: 120px; bottom: 80px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; z-index: 999; }
-        .alphabet-sidebar span { font-size: 11px; color: #007aff; font-weight: 600; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 9px; }
-        .alphabet-sidebar.hide { display: none !important; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>开单+库存</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <style>
+    :root {
+      --primary: #4A154B;        
+      --primary-hover: #360f37; 
+      --accent: #ffb81c;        
+      --bg-main: #f4f2f5;       
+      --text-main: #1f1121;     
+      --text-muted: #756676;    
+      --card-bg: #ffffff;       
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
+    .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}
+    .top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }
+    .back-btn:active { background: #e2dde3; transform: scale(0.97); }
+    .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
+    .editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }
+    #list { width: 100%; }
+    .big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }
+    .emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }
+    .emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }
+    .emp-card:active { background: #f3e2f5; transform: scale(0.97); }
+    .store-container { padding-right: 24px; box-sizing: border-box; }
+    .letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }
+    .item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }
+    .item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .prod-info { flex: 1; min-width: 0; }
+    .prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }
+    .picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }
+    .picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }
+    .picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
+    .ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }
+    .ios-picker:focus { border-color: var(--primary); background: #fff; }
+    .aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+    .aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }
+    .aftersale-options { display: flex; gap: 14px; margin-top: 2px; }
+    .aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }
+    .btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }
+    .btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }
+    .btn-gate-newstore { background: linear-gradient(135deg, #ff9c6e, #ff4d4f); }
+    .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }
+    .smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .date-picker-wrapper { position: relative; display: inline-block; }
+    .real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }
+    .search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }
+    .search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }
+    .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
+    .search-clear-btn:active { background: #d0c9d2; }
+    .btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }
+    .btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
+    .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
+    .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
+    .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
+    .spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }
+    .spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }
+    .spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+    .brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }
+    .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
+    .hide { display:none !important; }
+    .history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
+    .stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }
+    .stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+    .stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }
+    .alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }
+    .amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }
+    .amount-summary-banner strong { font-size: 15px; }
+    .detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .detail-grid-item { display: flex; justify-content: space-between; align-items: center; }
+  </style>
 </head>
 <body>
 
-    <!-- 顶部状态导航 -->
-    <div class="navbar">
-        <div class="nav-left">
-            <div id="back" class="back-btn hide" onclick="handleBack()">❮ 返回</div>
-            <span id="navTitle">人员选择</span>
-            <span id="editStateBadge" class="state-badge edit hide">修改模式</span>
+<div class="card">
+  <div id="searchBlock" class="search-wrapper">
+    <input id="search" placeholder="🔍 输入姓名或工号搜索员工..." oninput="handleSearch()" />
+    <div id="clearSearch" class="search-clear-btn" onclick="clearSearchInput()">✕</div>
+  </div>
+
+  <div class="top-action-bar">
+    <div id="back" class="back-btn hide" onclick="goBack()">返回</div>
+    <div id="editStateBadge" class="editing-badge hide">正在修改历史单据</div>
+  </div>
+
+  <div id="list"></div>
+  <div id="alphabetSidebar" class="alphabet-sidebar hide"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.3/dist/index.js"></script>
+<script>
+const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let STATE = "EMP"; 
+let employees = [];
+let stores = []; 
+let products = [];
+let currentEmployee = null;
+let currentStore = null; 
+let orderData = null; 
+let currentSelectedBrand = null; 
+let currentSelectedSpec = "ALL"; 
+let historyOrders = []; 
+let stockData = {}; 
+let selectedReportDate = ""; 
+let isNewStoreFlow = false; 
+
+function isSpecialSpecOreo(productObj) {
+  if (!productObj || !productObj.spec) return false;
+  return productObj.spec.includes("3片装");
+}
+
+function formatQtyToUnits(totalPcs, specCase, specBox) {
+  let displayCases = Math.floor(totalPcs / specCase);
+  let remPcs = totalPcs % specCase;
+  
+  if (specBox > 0) {
+    let displayBoxes = Math.floor(remPcs / specBox);
+    let displayPcs = remPcs % specBox;
+    return `${displayCases}件 ${displayBoxes}盒 ${displayPcs}个`;
+  } else {
+    return `${displayCases}件 ${remPcs}个`;
+  }
+}
+
+function getPriceDecimalPlaces(prodId) {
+  const idNum = Number(prodId);
+  return (idNum >= 49 && idNum <= 55) ? 2 : 1;
+}
+
+function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
+  let saleAmount = 0; 
+  let giftAmount = 0; 
+  let restoreAmount = 0; 
+  let scrapAmount = 0;    
+
+  const isOreo = isSpecialSpecOreo(productObj);
+  const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
+  const specBox = isOreo ? (productObj.pcs_per_box || 6) : (productObj.pcs_per_box || 0);
+
+  if (isOreo) {
+    saleAmount = qty * livePrice;
+    const liveSingleBagPrice = livePrice / (specBox || 6);
+    const defaultSingleBagPrice = defaultPrice / (specBox || 6);
+    giftAmount = giftQty * defaultSingleBagPrice; 
+    if (returnHandle === 'SCRAP') {
+      scrapAmount = returnQty * liveSingleBagPrice; 
+    } else {
+      restoreAmount = returnQty * liveSingleBagPrice; 
+    }
+  } else {
+    saleAmount = qty * livePrice;
+    giftAmount = giftQty * defaultPrice; 
+    if (returnHandle === 'SCRAP') {
+      scrapAmount = returnQty * livePrice;
+    } else {
+      restoreAmount = returnQty * livePrice;
+    }
+  }
+  return { saleAmount, giftAmount, restoreAmount, scrapAmount };
+}
+
+function parseReturnHandleText(val) {
+  if (!val || typeof val !== 'string' || !val.includes('_')) {
+    return { qty: 0, handle: 'RESTORE' };
+  }
+  const parts = val.split('_');
+  return { qty: parseInt(parts[0]) || 0, handle: parts[1] || 'RESTORE' };
+}
+
+async function init(){
+  try {
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+    
+    // 【更新点】只从最新的 employees 表取数据
+    const e = await client.from('employees').select('*');
+    const p = await client.from('products').select('*');
+    
+    employees = e.data || [];
+    products = (p.data || []).map(x => ({ 
+      ...x, 
+      spec: (x.spec || '常规款').trim(),
+      pcs_per_box: parseInt(x.pcs_per_box) || 0 
+    }));
+    renderEmployees();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 页面初始化失败，请刷新重试</div>';
+  }
+}
+
+function handleSearch(){
+  const val = document.getElementById('search').value;
+  const clearBtn = document.getElementById('clearSearch');
+  if(val && val.length > 0) clearBtn.style.display = 'block';
+  else clearBtn.style.display = 'none';
+  if(STATE === 'EMP') renderEmployees();
+  else if(STATE === 'STORE') renderStores();
+}
+
+function autoResetSearchState() {
+  document.getElementById('search').value = '';
+  document.getElementById('clearSearch').style.display = 'none';
+}
+
+function clearSearchInput() {
+  document.getElementById('search').value = '';
+  document.getElementById('clearSearch').style.display = 'none';
+  if(STATE === 'EMP') renderEmployees();
+  else if(STATE === 'STORE') renderStores();
+}
+
+function getSearch(){ return document.getElementById('search').value || ''; }
+
+function renderEmployees(){
+  STATE = 'EMP';
+  orderData = null; 
+  document.getElementById('back').classList.add('hide');
+  document.getElementById('editStateBadge').classList.add('hide'); 
+  document.getElementById('alphabetSidebar').classList.add('hide'); 
+  document.getElementById('searchBlock').classList.remove('hide'); 
+  document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
+
+  const k = getSearch();
+  // 【更新点】对照最新结构，员工姓名字段改用 e.name，编码改用 e.employee_code
+  const list = employees.filter(e => (e.name || '').includes(k) || (e.employee_code || '').includes(k));
+
+  if (list.length === 0) {
+    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:30px;">⚠️ 未找到匹配的员工</div>`;
+    return;
+  }
+
+  document.getElementById('list').innerHTML = `
+    <div class="emp-grid">
+      ${list.map(e => `
+        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.name}')">
+          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.name}</strong>
+          <div class='sub' style="font-size:12px;">${e.employee_code}</div>
         </div>
-        <div class="nav-right" id="navAction" onclick="handleNavAction()"></div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function openEmployee(code, name){
+  autoResetSearchState();
+  STATE = 'STORE';
+  orderData = null; 
+  currentEmployee = {code, name};
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('searchBlock').classList.remove('hide'); 
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+
+  // 【更新点】依照最新设计，直接通过专属关联表 employee_store_assets 提取该员工负责的门店资产列表，不管无关人员。
+  const r = await client.from('employee_store_assets').select('atom_code, store_name').eq('employee_code', code);
+  
+  stores = (r.data || []).map(item => ({
+    atom_code: String(item.atom_code).trim(),
+    store_name: (item.store_name || '').trim()
+  })).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
+  
+  renderStores();
+}
+
+function getStoreFirstLetter(storeName) {
+  if (!storeName) return '#';
+  try {
+    const firstChar = storeName.trim().charAt(0);
+    const pinyin = pinyinPro.pinyin(firstChar, { pattern: 'first', toneType: 'none' });
+    if (pinyin && pinyin.length > 0) {
+      const letter = pinyin.charAt(0).toUpperCase();
+      if (/[A-Z]/.test(letter)) return letter;
+    }
+  } catch (e) { console.error(e); }
+  return '#';
+}
+
+function renderStores(){
+  STATE = 'STORE';
+  orderData = null; 
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('searchBlock').classList.remove('hide'); 
+  document.getElementById('search').placeholder = "🔍 输入门店名称或编码搜索店铺...";
+
+  const k = getSearch();
+  const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
+
+  const groupedStores = {};
+  const activeLetters = new Set();
+
+  f.forEach(s => {
+    const letter = getStoreFirstLetter(s.store_name);
+    if (!groupedStores[letter]) groupedStores[letter] = [];
+    groupedStores[letter].push(s);
+    activeLetters.add(letter);
+  });
+
+  const sortedLetters = Array.from(activeLetters).sort();
+  const sidebarEl = document.getElementById('alphabetSidebar');
+  
+  if (sortedLetters.length > 1 && !k && f.length > 10) { 
+    sidebarEl.classList.remove('hide');
+    sidebarEl.innerHTML = sortedLetters.map(l => `<div class="alphabet-letter" onclick="scrollToLetterGroup('${l}')">${l}</div>`).join('');
+  } else {
+    sidebarEl.classList.add('hide'); sidebarEl.innerHTML = '';
+  }
+
+  let listHtml = `
+    <div class="store-top-gates">
+      <button class="btn-gate-half btn-gate-stock" onclick="openStockManagement()">📦 库存管理</button>
+      <button class="btn-gate-half btn-gate-report" onclick="openSaleReport()">📊 卖进数据</button>
+      <button class="btn-gate-half btn-gate-newstore" onclick="openNewStoreManagement()">🆕 新门店</button>
+    </div>
+    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>门店总数：${stores.length} 家</div>
+    <div class="store-container">
+  `;
+
+  if (sortedLetters.length === 0) {
+    listHtml += `<div class="sub" style="text-align:center;padding:20px;">⚠️ 未找到匹配的店铺</div>`;
+  } else {
+    sortedLetters.forEach(letter => {
+      listHtml += `<div id="group_letter_${letter}" class="letter-group-title">${letter}</div>`;
+      groupedStores[letter].forEach(s => {
+        const isTemp = String(s.atom_code).startsWith('NEW_');
+        listHtml += `
+          <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
+            <div class="item-main-row">
+              <div>
+                <strong style="font-size:16px;color:var(--primary);">${s.store_name} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">新门店</span>' : ''}</strong>
+                <div class='sub'>${s.atom_code}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    });
+  }
+  listHtml += `</div>`;
+  document.getElementById('list').innerHTML = listHtml;
+}
+
+function scrollToLetterGroup(letter) {
+  const target = document.getElementById(`group_letter_${letter}`);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openNewStoreManagement() {
+  STATE = 'NEW_STORE_MGT';
+  orderData = null;
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+
+  const newStoresList = stores.filter(s => String(s.atom_code).startsWith('NEW_'));
+
+  document.getElementById('list').innerHTML = `
+    <div class="big-store-title">🆕 新门店开单管理</div>
+    <div class="sub" style="margin-bottom: 16px;">在此可以对尚未录入系统的临时新门店进行开单与管理。</div>
+    
+    <div style="margin: 14px 0;">
+      <button class="btn-new-order" style="background:linear-gradient(135deg, #ff9c6e, #ff4d4f);" onclick="triggerCreateNewStore()">＋ 创建新门店并开单</button>
     </div>
 
-    <!-- 搜索过滤栏 -->
-    <div id="searchBlock" class="search-block hide">
-        <input type="text" id="searchInput" class="search-input" placeholder="输入关键字搜索..." oninput="handleSearch()">
+    <div style='font-size:14px; font-weight:800; color:var(--primary); margin: 18px 0 8px 4px;'>已开单的新门店列表 (${newStoresList.length})</div>
+    ${newStoresList.length === 0 ? `
+      <div class="sub" style="text-align:center; padding:40px; color:#aaa; background:#faf9fa; border-radius:8px; border:1px dashed #e2dde3;">
+        暂无自主创建的新门店信息
+      </div>
+    ` : newStoresList.map(s => `
+      <div class="history-item" style="border-left: 4px solid #ff7875;">
+        <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong style="font-size:16px; color:var(--primary);">${s.store_name}</strong>
+            <div class="sub" style="font-size:12px;">临时编码: ${s.atom_code}</div>
+          </div>
+          <button class="smallbtn" style="background:var(--primary); color:#fff; border:none; padding:6px 12px;" onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">去开单 / 历史 →</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function triggerCreateNewStore() {
+  const storeName = prompt("请输入自定义新门店的名称:");
+  if (!storeName || storeName.trim() === "") {
+    if (storeName !== null) alert("门店名称不能为空！");
+    return;
+  }
+  const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const tempAtomCode = `NEW_${randomSuffix}`;
+  isNewStoreFlow = true;
+  currentStore = { atom: tempAtomCode, name: storeName.trim() };
+  templateEditOrNew(null, null, null, tempAtomCode, storeName.trim());
+}
+
+async function openStockManagement(){
+  STATE = 'STOCK';
+  orderData = null;
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide');
+  document.getElementById('alphabetSidebar').innerHTML = '';
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+
+  // 【更新点】依照最新结构，指定从 van_stocks 库表中按 employee_code 取对应数据
+  const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
+  
+  const stockMap = {};
+  (currentStocks || []).forEach(st => {
+    // 【更新点】库存表用 product_barcode 作为关联标识
+    stockMap[st.product_barcode] = Number(st.qty) || 0;
+  });
+
+  stockData = { 
+    emp_code: currentEmployee.code, 
+    currentStockMap: stockMap, 
+    additions: {} 
+  };
+
+  if(!currentSelectedBrand) {
+    const brands = [...new Set(products.map(p => p.brand))];
+    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+    currentSelectedSpec = "ALL";
+  }
+  renderStockPage();
+}
+
+function generateFilterHeaderHtml() {
+  const brands = [...new Set(products.map(p => p.brand))];
+  if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
+  
+  const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))];
+  if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) {
+    currentSelectedSpec = "ALL";
+  }
+
+  return `
+    <div class="brand-nav">
+      ${brands.map(b => `
+        <span class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="switchStockBrand('${b}')">${b}</span>
+      `).join('')}
+    </div>
+    <div class="spec-nav">
+      <span class="spec-badge ${currentSelectedSpec === 'ALL' ? 'active' : ''}" onclick="switchStockSpec('ALL')">全部规格</span>
+      ${availableSpecs.map(sp => `
+        <span class="spec-badge ${sp === currentSelectedSpec ? 'active' : ''}" onclick="switchStockSpec('${sp}')">${sp}</span>
+      `).join('')}
+    </div>
+  `;
+}
+
+function switchStockBrand(brandName) {
+  currentSelectedBrand = brandName;
+  currentSelectedSpec = "ALL";
+  if (STATE === 'STOCK') renderStockPage();
+  else if (STATE === 'ORDER') renderOrderPage();
+}
+
+function switchStockSpec(specName) {
+  currentSelectedSpec = specName;
+  if (STATE === 'STOCK') renderStockPage();
+  else if (STATE === 'ORDER') renderOrderPage();
+}
+
+function renderStockPage(){
+  let html = `
+    <div class="big-store-title">📦 车销库存管理</div>
+    <div class="sub" style="margin-bottom:14px;">当前员工：<strong>${currentEmployee.name}</strong> (${currentEmployee.code})</div>
+  `;
+  
+  html += generateFilterHeaderHtml();
+  
+  const filteredProducts = products.filter(p => {
+    if (p.brand !== currentSelectedBrand) return false;
+    if (currentSelectedSpec !== "ALL" && p.spec !== currentSelectedSpec) return false;
+    return true;
+  });
+
+  if(filteredProducts.length === 0){
+    html += `<div class="sub" style="text-align:center;padding:30px;">暂无该品类商品</div>`;
+  } else {
+    filteredProducts.forEach(p => {
+      // 【更新点】用 barcode 提取对应的库存数据量
+      const currentTotal = stockData.currentStockMap[p.barcode] || 0;
+      const displayCurrentStr = formatQtyToUnits(currentTotal, parseInt(p.pcs_per_case)||1, p.pcs_per_box||0);
+      
+      const savedInput = stockData.additions[p.barcode] || { type: 'ADD', qty: 0 };
+
+      html += `
+        <div class="stock-row">
+          <div class="prod-name" style="color:var(--primary);">${p.name}</div>
+          <div class="sub" style="font-size:12px;">条码: ${p.barcode} | 当前库存: <span style="color:var(--primary);font-weight:bold;">${displayCurrentStr}</span></div>
+          
+          <div class="stock-input-group">
+            <select class="stock-dir-select" onchange="updateStockActionType('${p.barcode}', this.value)">
+              <option value="ADD" ${savedInput.type==='ADD'?'selected':''}>➕ 增加车载库存</option>
+              <option value="SUB" ${savedInput.type==='SUB'?'selected':''}>➖ 扣减车载库存</option>
+            </select>
+            
+            <div class="control-group" style="max-width:100%; margin-top:4px;">
+              <div class="picker-wrapper">
+                <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'CASE', this.value)">
+                  ${Array.from({length: 101}, (_, i) => `<option value="${i}" ${ (savedInput.cases||0)===i?'selected':'' }>${i}</option>`).join('')}
+                </select>
+                <span class="unit-txt">件</span>
+              </div>
+              
+              ${ p.pcs_per_box > 0 ? `
+                <div class="picker-wrapper">
+                  <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'BOX', this.value)">
+                    ${Array.from({length: parseInt(p.pcs_per_case/p.pcs_per_box)+1}, (_, i) => `<option value="${i}" ${ (savedInput.boxes||0)===i?'selected':'' }>${i}</option>`).join('')}
+                  </select>
+                  <span class="unit-txt">盒</span>
+                </div>
+              ` : '' }
+
+              <div class="picker-wrapper">
+                <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'PCS', this.value)">
+                  ${Array.from({length: (p.pcs_per_box > 0 ? p.pcs_per_box : parseInt(p.pcs_per_case)) + 1}, (_, i) => `<option value="${i}" ${ (savedInput.pcs||0)===i?'selected':'' }>${i}</option>`).join('')}
+                </select>
+                <span class="unit-txt">个</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  html += `<button id="submitStockBtn" class="float-submit" onclick="submitStockChanges()">🚀 提交修改</button>`;
+  document.getElementById('list').innerHTML = html;
+}
+
+function updateStockActionType(barcode, val) {
+  if (!stockData.additions[barcode]) {
+    stockData.additions[barcode] = { type: 'ADD', cases: 0, boxes: 0, pcs: 0 };
+  }
+  stockData.additions[barcode].type = val;
+}
+
+function updateStockActionQty(barcode, unitType, val) {
+  if (!stockData.additions[barcode]) {
+    stockData.additions[barcode] = { type: 'ADD', cases: 0, boxes: 0, pcs: 0 };
+  }
+  const intV = parseInt(val) || 0;
+  if(unitType === 'CASE') stockData.additions[barcode].cases = intV;
+  else if(unitType === 'BOX') stockData.additions[barcode].boxes = intV;
+  else if(unitType === 'PCS') stockData.additions[barcode].pcs = intV;
+}
+
+async function submitStockChanges(){
+  const submitBtn = document.getElementById('submitStockBtn');
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '正在提交...'; }
+
+  try {
+    const ops = [];
+    for (const barcode in stockData.additions) {
+      const item = stockData.additions[barcode];
+      const p = products.find(x => x.barcode === barcode);
+      if(!p) continue;
+      
+      const cSize = parseInt(p.pcs_per_case) || 1;
+      const bSize = parseInt(p.pcs_per_box) || 0;
+      const totalDelta = (item.cases || 0) * cSize + (item.boxes || 0) * bSize + (item.pcs || 0);
+      
+      if(totalDelta === 0) continue;
+      
+      const currentStock = stockData.currentStockMap[barcode] || 0;
+      let newStockVal = currentStock;
+      
+      if(item.type === 'ADD') {
+        newStockVal = currentStock + totalDelta;
+      } else {
+        newStockVal = currentStock - totalDelta;
+        if(newStockVal < 0) newStockVal = 0; 
+      }
+      
+      ops.push({
+        employee_code: stockData.emp_code,
+        product_barcode: barcode,
+        qty: newStockVal,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    if(ops.length === 0) {
+      alert("💡 您没有输入任何库存修改项！");
+      if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交修改'; }
+      return;
+    }
+
+    // 【更新点】针对新版 van_stocks 执行 upsert 覆盖写入
+    for(const op of ops) {
+      const { error } = await client.from('van_stocks').upsert(op, { onConflict: 'employee_code,product_barcode' });
+      if(error) throw error;
+    }
+
+    alert("✨ 库存更新成功！");
+    openStockManagement();
+  } catch (err) {
+    console.error(err);
+    alert("❌ 库存数据更新失败，请检查网络重试！");
+    if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交修改'; }
+  }
+}
+
+async function openStoreHistory(atomCode, storeName) {
+  autoResetSearchState();
+  STATE = 'HISTORY';
+  orderData = null; 
+  isNewStoreFlow = false;
+  currentStore = { atom: atomCode, name: storeName };
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在历史账单...</div>';
+
+  const { data: orders } = await client.from('sales_orders')
+    .select('*')
+    .eq('atom_code', atomCode)
+    .order('created_at', { ascending: false });
+
+  historyOrders = orders || [];
+  renderHistory();
+}
+
+function renderHistory(){
+  STATE = 'HISTORY';
+  orderData = null; 
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+
+  const isTemp = String(currentStore.atom).startsWith('NEW_');
+
+  let html = `
+    <div class="big-store-title" style="margin-bottom:2px;">${currentStore.name}</div>
+    <div class="sub" style="margin-bottom:14px;">门店编码：${currentStore.atom} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">新门店</span>' : ''}</div>
+    <button class="btn-new-order" onclick="templateEditOrNew(null, null, null, '${currentStore.atom}', '${currentStore.name}')">＋ 开始销售开单</button>
+    <div style='font-size:15px; font-weight:700; color:var(--primary); margin: 15px 0 8px 4px;'>历史派单账单 (${historyOrders.length})</div>
+  `;
+
+  if(historyOrders.length === 0){
+    html += `<div class="sub" style="text-align:center;padding:40px;color:#aaa;">🏪 暂无该门店的历史开单记录</div>`;
+  } else {
+    historyOrders.forEach(o => {
+      const dtStr = new Date(o.created_at).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'});
+      html += `
+        <div class="history-item">
+          <div style="width:100%; display:flex; justify-content:between; align-items:center;">
+            <span style="font-size:12px; color:var(--text-muted); font-weight:500;">📅 ${dtStr}</span>
+            <span style="font-size:12px; background:#e8eaf6; color:#3f51b5; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:auto;">${o.status === 'completed' ? '已完成' : '已归档'}</span>
+          </div>
+          <div style="font-size:15px; font-weight:700; margin: 2px 0;">单号: <span style="color:var(--primary);">${o.order_no}</span></div>
+          <div style="font-size:14px; font-weight:600; color:#2e7d32;">💰 实付总金额: ¥${Number(o.total_amount).toFixed(2)}</div>
+          ${o.remark ? `<div class="sub" style="font-size:12px; background:#f5f5f5; width:100%; padding:6px; box-sizing:border-box; border-radius:4px;">备注: ${o.remark}</div>` : ''}
+          <div style="margin-top: 6px; display:flex; gap:8px; width:100%; justify-content:flex-end;">
+            <button class="smallbtn" onclick="viewOrderDetail('${o.id}', '${o.created_at}', false)">查看明细</button>
+            <button class="smallbtn" style="background:#fff7eb; border-color:#f5dab1; color:#e6a23c; font-weight:bold;" onclick="templateEditOrNew('${o.id}', '${o.order_no}', '${o.remark}', '${o.atom_code}', '${o.store_name}')">修改单据</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+  document.getElementById('list').innerHTML = html;
+}
+
+async function viewOrderDetail(orderId, createdAt, fromReport=false) {
+  STATE = 'DETAIL';
+  orderData = null;
+  document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据明细...</div>';
+
+  const orderMaster = fromReport 
+    ? historyOrders.find(h => String(h.id) === String(orderId))
+    : historyOrders.find(h => String(h.id) === String(orderId));
+    
+  if(!orderMaster) {
+    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 找不到单据主表数据</div>';
+    return;
+  }
+
+  const { data: items } = await client.from('sales_order_items').select('*').eq('order_no', orderMaster.order_no);
+  
+  let html = `
+    <div class="big-store-title" style="margin-bottom:2px;">🧾 单据交易明细</div>
+    <div class="sub" style="margin-bottom:12px;">单号：<strong>${orderMaster.order_no}</strong></div>
+    <div class="amount-summary-banner" style="margin-bottom:14px; background:#fff;">
+      <div style="margin-bottom:4px;">🏪 门店: <strong>${orderMaster.store_name}</strong> (${orderMaster.atom_code})</div>
+      <div style="margin-bottom:4px;">📅 时间: ${new Date(orderMaster.created_at).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}</div>
+      <div style="font-size:16px; color:#2e7d32; margin-top:6px;">💰 实付总金额: <strong>¥${Number(orderMaster.total_amount).toFixed(2)}</strong></div>
+      ${orderMaster.remark ? `<div style="margin-top:4px; color:#c62828;">📝 备注: ${orderMaster.remark}</div>` : ''}
+    </div>
+    <div style="font-weight:700; margin:10px 0 6px 4px; color:var(--primary);">商品销售清单 (${(items||[]).length})</div>
+  `;
+
+  if(!items || items.length === 0) {
+    html += `<div class="sub" style="text-align:center; padding:20px;">该单据下无任何商品明细</div>`;
+  } else {
+    items.forEach(it => {
+      const matchedP = products.find(p => p.barcode === it.barcode);
+      const specCase = matchedP ? (parseInt(matchedP.pcs_per_case) || 1) : 1;
+      const specBox = matchedP ? (parseInt(matchedP.pcs_per_box) || 0) : 0;
+      
+      const qtyPcs = Number(it.qty) || 0;
+      const displayQtyStr = formatQtyToUnits(qtyPcs, specCase, specBox);
+
+      html += `
+        <div class="item" style="padding:10px 4px;">
+          <div class="prod-name" style="color:var(--text-main); font-size:15px;">${it.product_name || '未知商品'}</div>
+          <div class="sub" style="font-size:12px; margin-top:2px;">条码: ${it.barcode}</div>
+          <div class="detail-grid-container">
+            <div class="detail-grid-item"><span>销售数量:</span><strong style="color:var(--primary);">${displayQtyStr}</strong></div>
+            <div class="detail-grid-item"><span>销售单价:</span><strong>¥${Number(it.unit_price).toFixed(2)}</strong></div>
+            <div class="detail-grid-item" style="grid-column: span 2; justify-content: flex-start; gap:10px; border-top:1px dashed #f0f0f0; padding-top:4px; margin-top:2px;">
+              <span>小计金额:</span><strong style="color:#2e7d32;">¥${Number(it.amount).toFixed(2)}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  document.getElementById('list').innerHTML = html;
+}
+
+async function templateEditOrNew(id, orderNo, remark, atomCode, storeName) {
+  autoResetSearchState();
+  STATE = "ORDER";
+  
+  if (id) {
+    document.getElementById('editStateBadge').classList.remove('hide');
+  } else {
+    document.getElementById('editStateBadge').classList.add('hide');
+  }
+  
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">数据结构初始化中...</div>';
+
+  orderData = {
+    id: id || null,
+    order_no: orderNo || null,
+    remark: remark || '',
+    atom: atomCode,
+    name: storeName,
+    items: {} 
+  };
+
+  products.forEach(p => {
+    orderData.items[p.barcode] = {
+      qty: 0,
+      livePrice: isSpecialSpecOreo(p) ? 17.5 : (p.default_price || 15)
+    };
+  });
+
+  if (id) {
+    const { data: existingItems } = await client.from('sales_order_items').select('*').eq('order_no', orderNo);
+    (existingItems || []).forEach(it => {
+      if (orderData.items[it.barcode]) {
+        orderData.items[it.barcode].qty = Number(it.qty) || 0;
+        orderData.items[it.barcode].livePrice = Number(it.unit_price) || 0;
+      }
+    });
+  }
+
+  if (!currentSelectedBrand) {
+    const brands = [...new Set(products.map(p => p.brand))];
+    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+    currentSelectedSpec = "ALL";
+  }
+
+  renderOrderPage();
+}
+
+function renderOrderPage(){
+  let html = `
+    <div class="big-store-title" style="margin-bottom:2px;">🛒 手机开单收银</div>
+    <div class="sub" style="margin-bottom:4px;">当前门店：<strong>${orderData.name}</strong></div>
+    <div class="sub" style="margin-bottom:14px;">经办员工：<strong>${currentEmployee.name}</strong> (${currentEmployee.code})</div>
+  `;
+
+  html += generateFilterHeaderHtml();
+
+  let totalLiveOrderAmount = 0;
+  products.forEach(p => {
+    const rowInput = orderData.items[p.barcode];
+    if(rowInput && rowInput.qty > 0) {
+      const rowAmounts = getLiveRowAmounts(p, rowInput.qty, rowInput.livePrice, 0, 0, 'RESTORE');
+      totalLiveOrderAmount += rowAmounts.saleAmount;
+    }
+  });
+
+  html += `
+    <div class="amount-summary-banner">
+      🛒 当前账单实时合计实付额：<strong style="color:#2e7d32; font-size:17px;">¥${totalLiveOrderAmount.toFixed(2)}</strong>
+    </div>
+    <div style="margin: 12px 2px 6px 2px;">
+      <label style="font-size:13px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">📝 账单备注信息 (可选):</label>
+      <input id="orderRemarkInput" type="text" placeholder="如：送货备注、整单折扣说明..." value="${orderData.remark || ''}" oninput="orderData.remark = this.value" style="width:100%; padding:10px; border:1px solid #dcd6dd; border-radius:6px; box-sizing:border-box; font-size:14px;" />
+    </div>
+  `;
+
+  const filteredProducts = products.filter(p => {
+    if (p.brand !== currentSelectedBrand) return false;
+    if (currentSelectedSpec !== "ALL" && p.spec !== currentSelectedSpec) return false;
+    return true;
+  });
+
+  if (filteredProducts.length === 0) {
+    html += `<div class="sub" style="text-align:center;padding:30px;">暂无该品类商品</div>`;
+  } else {
+    filteredProducts.forEach(p => {
+      const rowInput = orderData.items[p.barcode];
+      const isOreo = isSpecialSpecOreo(p);
+      const specCase = parseInt(p.pcs_per_case) || 1;
+      const specBox = p.pcs_per_box || 0;
+
+      let currentCases = Math.floor(rowInput.qty / specCase);
+      let remPcs = rowInput.qty % specCase;
+      let currentBoxes = specBox > 0 ? Math.floor(remPcs / specBox) : 0;
+      let currentPcs = specBox > 0 ? remPcs % specBox : remPcs;
+
+      const decPlaces = getPriceDecimalPlaces(p.id);
+      const stepVal = decPlaces === 2 ? 0.01 : 0.1;
+
+      html += `
+        <div class="item">
+          <div class="brand"><span style="background:var(--primary); width:4px; height:14px; display:inline-block; border-radius:2px;"></span>${p.name}</div>
+          <div class="sub" style="margin-bottom:8px; font-size:12px;">条码: ${p.barcode} | 规格: ${p.spec}</div>
+          
+          <div style="display:flex; flex-direction:column; gap:8px; background:#faf9fa; padding:10px; border-radius:8px; border:1px solid #eeeade;">
+            
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; flex-wrap:wrap; gap:6px;">
+              <span style="font-size:13px; font-weight:700; color:var(--primary);">🛍️ 销售数量:</span>
+              <div class="control-group">
+                <div class="picker-wrapper">
+                  <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'CASE', this.value)">
+                    ${Array.from({length: 101}, (_, i) => `<option value="${i}" ${currentCases===i?'selected':''}>${i}</option>`).join('')}
+                  </select>
+                  <span class="unit-txt">件</span>
+                </div>
+                
+                ${ specBox > 0 ? `
+                  <div class="picker-wrapper">
+                    <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'BOX', this.value)">
+                      ${Array.from({length: parseInt(specCase/specBox)+1}, (_, i) => `<option value="${i}" ${currentBoxes===i?'selected':''}>${i}</option>`).join('')}
+                    </select>
+                    <span class="unit-txt">盒</span>
+                  </div>
+                ` : '' }
+
+                <div class="picker-wrapper">
+                  <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'PCS', this.value)">
+                    ${Array.from({length: (specBox > 0 ? specBox : specCase) + 1}, (_, i) => `<option value="${i}" ${currentPcs===i?'selected':''}>${i}</option>`).join('')}
+                  </select>
+                  <span class="unit-txt">个</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; border-top:1px dashed #e2dde3; padding-top:8px;">
+              <span style="font-size:13px; font-weight:700; color:#c62828;">🏷️ 实际售价:</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <span style="font-size:12px; color:var(--text-muted);">¥</span>
+                <input type="number" step="${stepVal}" value="${rowInput.livePrice}" onchange="updateRowPrice('${p.barcode}', this.value)" style="width:70px; padding:5px; text-align:center; font-weight:bold; font-size:14px; border:1px solid #cbd5e1; border-radius:6px; color:#c62828; background:#fff;" />
+                <span style="font-size:12px; color:var(--text-muted);">${isOreo ? '元/件' : '元/件'}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  html += `<button id="submitOrderBtn" class="float-submit" onclick="submitOrderFinalSales()">🚀 提交账单</button>`;
+  document.getElementById('list').innerHTML = html;
+}
+
+function updateRowQty(barcode, unitType, val) {
+  const p = products.find(x => x.barcode === barcode);
+  if(!p) return;
+  const rowInput = orderData.items[barcode];
+  const specCase = parseInt(p.pcs_per_case) || 1;
+  const specBox = p.pcs_per_box || 0;
+
+  let currentCases = Math.floor(rowInput.qty / specCase);
+  let remPcs = rowInput.qty % specCase;
+  let currentBoxes = specBox > 0 ? Math.floor(remPcs / specBox) : 0;
+  let currentPcs = specBox > 0 ? remPcs % specBox : remPcs;
+
+  const intV = parseInt(val) || 0;
+  if(unitType === 'CASE') currentCases = intV;
+  else if(unitType === 'BOX') currentBoxes = intV;
+  else if(unitType === 'PCS') currentPcs = intV;
+
+  rowInput.qty = currentCases * specCase + currentBoxes * specBox + currentPcs;
+  
+  const bannerEl = document.querySelector('.amount-summary-banner strong');
+  if(bannerEl) {
+    let totalLiveOrderAmount = 0;
+    products.forEach(prod => {
+      const rIn = orderData.items[prod.barcode];
+      if(rIn && rIn.qty > 0) {
+        const rowAm = getLiveRowAmounts(prod, rIn.qty, rIn.livePrice, 0, 0, 'RESTORE');
+        totalLiveOrderAmount += rowAm.saleAmount;
+      }
+    });
+    bannerEl.innerText = `¥${totalLiveOrderAmount.toFixed(2)}`;
+  }
+}
+
+function updateRowPrice(barcode, val) {
+  const rowInput = orderData.items[barcode];
+  if(rowInput) {
+    rowInput.livePrice = parseFloat(val) || 0;
+    
+    const bannerEl = document.querySelector('.amount-summary-banner strong');
+    if(bannerEl) {
+      let totalLiveOrderAmount = 0;
+      products.forEach(prod => {
+        const rIn = orderData.items[prod.barcode];
+        if(rIn && rIn.qty > 0) {
+          const rowAm = getLiveRowAmounts(prod, rIn.qty, rIn.livePrice, 0, 0, 'RESTORE');
+          totalLiveOrderAmount += rowAm.saleAmount;
+        }
+      });
+      bannerEl.innerText = `¥${totalLiveOrderAmount.toFixed(2)}`;
+    }
+  }
+}
+
+async function submitOrderFinalSales(){
+  const submitBtn = document.getElementById('submitOrderBtn');
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '正在提交...'; }
+
+  try {
+    let finalTotalAmount = 0;
+    const itemsToInsert = [];
+
+    let hasValidItems = false;
+    for (const barcode in orderData.items) {
+      const rowInput = orderData.items[barcode];
+      if(rowInput.qty > 0) {
+        hasValidItems = true;
+      }
+    }
+
+    if(!hasValidItems) {
+      alert("💡 账单中没有任何有效的商品订购数量！");
+      if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
+      return;
+    }
+
+    const generatedOrderNo = orderData.order_no || 'SO-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+
+    for (const barcode in orderData.items) {
+      const rowInput = orderData.items[barcode];
+      if(rowInput.qty <= 0) continue;
+
+      const p = products.find(x => x.barcode === barcode);
+      if(!p) continue;
+
+      const rowAm = getLiveRowAmounts(p, rowInput.qty, rowInput.livePrice, 0, 0, 'RESTORE');
+      finalTotalAmount += rowAm.saleAmount;
+
+      itemsToInsert.push({
+        order_no: generatedOrderNo,
+        barcode: barcode,
+        product_name: p.name,
+        qty: rowInput.qty,
+        unit_price: rowInput.livePrice,
+        amount: rowAm.saleAmount
+      });
+    }
+
+    // 【更新点】针对 sales_orders 写入，全字段匹配最新结构
+    const orderMasterRow = {
+      order_no: generatedOrderNo,
+      employee_code: currentEmployee.code,
+      atom_code: orderData.atom,
+      store_name: orderData.name,
+      total_amount: finalTotalAmount,
+      status: 'completed',
+      remark: orderData.remark || null
+    };
+
+    if(orderData.id) {
+      orderMasterRow.id = orderData.id;
+    }
+
+    const { data: savedOrder, error: orderErr } = await client
+      .from('sales_orders')
+      .upsert(orderMasterRow, { onConflict: 'id' })
+      .select();
+
+    if(orderErr) throw orderErr;
+
+    if(orderData.id) {
+      const { error: delErr } = await client.from('sales_order_items').delete().eq('order_no', generatedOrderNo);
+      if(delErr) throw delErr;
+    }
+
+    const { error: itemsErr } = await client.from('sales_order_items').insert(itemsToInsert);
+    if(itemsErr) throw itemsErr;
+
+    // 【更新点】如果是新门店自主创建流程，联动在 employee_store_assets 表中注册此临时门店
+    if (String(orderData.atom).startsWith('NEW_') && isNewStoreFlow) {
+      const newStoreAssetRow = {
+        employee_code: currentEmployee.code,
+        atom_code: orderData.atom,
+        store_name: orderData.name
+      };
+      await client.from('employee_store_assets').insert(newStoreAssetRow);
+    }
+
+    alert("✨ 恭喜，账单提交成功！");
+    
+    const isTemp = String(orderData.atom).startsWith('NEW_');
+    const savedAtom = orderData.atom;
+    const savedName = orderData.name;
+    
+    orderData = null;
+    isNewStoreFlow = false;
+
+    if(isTemp) {
+      const r = await client.from('employee_store_assets').select('atom_code, store_name').eq('employee_code', currentEmployee.code);
+      stores = (r.data || []).map(item => ({
+        atom_code: String(item.atom_code).trim(),
+        store_name: (item.store_name || '').trim()
+      })).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
+      
+      openNewStoreManagement();
+    } else {
+      openStoreHistory(savedAtom, savedName);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ 账单提交失败，请重试！");
+    if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
+  }
+}
+
+function goBack(){
+  document.getElementById('editStateBadge').classList.add('hide'); 
+  if(STATE === 'STOCK' || STATE === 'REPORT' || STATE === 'NEW_STORE_MGT') {
+    orderData = null;
+    renderStores(); 
+  }
+  else if(STATE === 'DETAIL') {
+    const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
+    if(isFromReport) {
+      openSaleReport(selectedReportDate);
+    } else {
+      renderHistory();
+    }
+  }
+  else if(STATE === 'ORDER') {
+    if(orderData?.id) {
+      const savedId = orderData.id;
+      orderData = null; 
+      renderHistory();
+    } else {
+      const isTemp = String(orderData?.atom).startsWith('NEW_');
+      orderData = null;
+      if (isTemp) {
+        openNewStoreManagement();
+      } else {
+        renderHistory();
+      }
+    }
+  }
+  else if(STATE === 'HISTORY') {
+    renderStores();
+  }
+  else if(STATE === 'STORE') {
+    currentEmployee = null;
+    renderEmployees();
+  }
+}
+
+async function openSaleReport(targetDateStr="") {
+  STATE = "REPORT";
+  orderData = null;
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('editStateBadge').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在统计卖进报表数据...</div>';
+
+  if(!targetDateStr) {
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(today - offset)).toISOString().slice(0,10);
+    targetDateStr = localISOTime;
+  }
+  selectedReportDate = targetDateStr;
+
+  const startUtc = targetDateStr + "T00:00:00.000Z";
+  const endUtc = targetDateStr + "T23:59:59.999Z";
+
+  const { data: dayOrders } = await client.from('sales_orders')
+    .select('*')
+    .eq('employee_code', currentEmployee.code)
+    .gte('created_at', startUtc)
+    .lte('created_at', endUtc)
+    .order('created_at', { ascending: false });
+
+  historyOrders = dayOrders || [];
+
+  let dayTotalSum = 0;
+  historyOrders.forEach(o => dayTotalSum += (Number(o.total_amount) || 0));
+
+  let html = `
+    <div class="big-store-title" style="margin-bottom:2px;">📊 车销卖进日报</div>
+    <div class="sub" style="margin-bottom:12px;">员工：<strong>${currentEmployee.name}</strong></div>
+    
+    <div style="background:#fff; border:1px solid #dcd6dd; border-radius:8px; padding:12px; margin-bottom:14px;">
+      <div style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">切换报表查看日期:</div>
+      <div class="date-picker-wrapper" style="width:100%;">
+        <button class="smallbtn" style="width:100%; padding:10px; font-weight:bold; font-size:15px; color:var(--primary); background:#faf9fa; text-align:center;">📅 ${targetDateStr} (点击更改)</button>
+        <input type="date" class="real-date-input" value="${targetDateStr}" onchange="openSaleReport(this.value)" />
+      </div>
     </div>
 
-    <!-- 主列表渲染区 -->
-    <div id="list" class="list-container"></div>
+    <div class="amount-summary-banner" style="background:#e8f5e9; border-left-color:#2e7d32; color:#1b5e20;">
+      📈 该日卖进订单总数：<strong>${historyOrders.length} 单</strong><br/>
+      💰 该日累计收款总额：<strong style="font-size:18px;">¥${dayTotalSum.toFixed(2)}</strong>
+    </div>
 
-    <!-- 拼音首字母快捷侧边栏 -->
-    <div id="alphabetSidebar" class="alphabet-sidebar hide"></div>
+    <div style='font-size:15px; font-weight:700; color:var(--primary); margin: 16px 0 8px 4px;'>本日已生成单据列表</div>
+  `;
 
-    <!-- 底部固定动作栏 -->
-    <div id="bottomBar" class="bottom-bar" style="display: none;"></div>
+  if(historyOrders.length === 0) {
+    html += `<div class="sub" style="text-align:center; padding:40px; color:#aaa; background:#faf9fa; border-radius:8px; border:1px dashed #e2dde3;">该日期下暂无任何账单</div>`;
+  } else {
+    historyOrders.forEach(o => {
+      const timeStr = new Date(o.created_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Shanghai'});
+      html += `
+        <div class="history-item" style="background:#fff;">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:15px; color:var(--primary);">${o.store_name}</strong>
+            <span style="font-size:12px; color:#756676;">⏰ ${timeStr}</span>
+          </div>
+          <div style="font-size:13px; color:var(--text-muted); margin: 2px 0;">单号: ${o.order_no}</div>
+          <div style="font-size:14px; font-weight:700; color:#2e7d32;">实付金额: ¥${Number(o.total_amount).toFixed(2)}</div>
+          <div style="margin-top: 6px; display:flex; gap:8px; width:100%; justify-content:flex-end;">
+            <button class="smallbtn" onclick="viewOrderDetail('${o.id}', '${o.created_at}', true)">查看明细</button>
+          </div>
+        </div>
+      `;
+    });
+  }
 
-    <script>
-        // --- 核心配置初始化 ---
-        const SUPABASE_URL = "https://your-supabase-url.supabase.co"; // ⚠️请替换为你的实际Supabase URL
-        const SUPABASE_KEY = "your-anon-key";         // ⚠️请替换为你的实际Anon Key
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  document.getElementById('list').innerHTML = html;
+}
 
-        // --- 全局状态机 ---
-        let STATE = 'EMPLOYEE'; // 可选值: EMPLOYEE | STORE | STOCK
-        let employees = [];
-        let products = [];
-        let stores = [];
-        
-        let currentEmployee = null; // {code, name}
-        let stockData = null;       // {emp_code, currentStockMap, additions}
-        
-        let currentSelectedBrand = null;
-        let currentSelectedSpec = "ALL";
-
-        // --- 初始化入口 ---
-        window.onload = async function() {
-            await init();
-        };
-
-        // --- 核心业务函数库 ---
-
-        // 1. 初始化基础数据
-        async function init(){
-            try {
-                document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在载入系统基础数据...</div>';
-                
-                // 同时拉取员工主表和商品基础资产表
-                const e = await client.from('employees').select('*');
-                const p = await client.from('products').select('*');
-                
-                // 确保只有实实在在登记在employees表里的员工才允许在首页展现
-                employees = e.data || [];
-                
-                // 清洗商品规格及装箱系数逻辑（包容空值、转换整型）
-                products = (p.data || []).map(x => ({ 
-                    ...x, 
-                    spec: (x.spec || '常规款').trim(),
-                    pcs_per_box: parseInt(x.pcs_per_box) || 0 
-                }));
-                
-                // 切回首页状态并渲染
-                STATE = 'EMPLOYEE';
-                renderEmployees();
-            } catch (err) {
-                console.error(err);
-                document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 页面初始化失败，请检查网络或配置</div>';
-            }
-        }
-
-        // 2. 点击员工加载其名下绑定的门店
-        async function openEmployee(code, name){
-            autoResetSearchState();
-            STATE = 'STORE';
-            stockData = null; 
-            currentEmployee = {code, name};
-            
-            // 操控页面顶栏组件展现
-            document.getElementById('back').classList.remove('hide');
-            document.getElementById('editStateBadge').classList.add('hide');
-            document.getElementById('searchBlock').classList.remove('hide'); 
-            document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在拉取负责门店...</div>';
-
-            // 【新架构对齐】通过 dealer_employee_mappings 关系表查询绑定的客户/门店编码 customer_code
-            const r = await client.from('dealer_employee_mappings').select('customer_code').eq('employee_code', code);
-            const codes = (r.data || []).map(i => String(i.customer_code).trim());
-
-            if(codes.length === 0) {
-                document.getElementById('list').innerHTML = '<div style="color:#8e8e93;padding:20px;text-align:center;">该员工暂未绑定任何门店</div>';
-                renderStoresMenu();
-                return;
-            }
-
-            // 【新架构对齐】拿洗净的编码去门店基础信息表 stores_dim 捞取对应实体
-            // 此处保持映射：旧字段 atom_code 在功能意义上对齐最新的客户主键 customer_code
-            const { data: matchedStores } = await client.from('stores_dim').select('*').in('atom_code', codes);
-            
-            // 拼音简易排序排版
-            stores = (matchedStores || []).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
-            renderStores();
-        }
-
-        // 3. 点击进入车销库存盘点页面
-        async function openStockManagement(){
-            STATE = 'STOCK';
-            document.getElementById('back').classList.remove('hide');
-            document.getElementById('editStateBadge').classList.add('hide');
-            document.getElementById('alphabetSidebar').classList.add('hide'); 
-            document.getElementById('alphabetSidebar').innerHTML = '';
-            document.getElementById('searchBlock').classList.add('hide'); 
-            document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在核对实时库存单...</div>';
-
-            // 【新架构对齐】改从全新品类库存表 van_stocks 中根据员工编码捞取数据
-            const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
-            
-            // 【透明双向关联】新表使用 product_barcode，而前端逻辑依赖 product_id。
-            // 我们在读出时建立 ［商品ID -> 现有库存散数qty］ 的纯映射字典，零污染原页面的任何渲染机制。
-            const stockMap = {};
-            (currentStocks || []).forEach(st => {
-                const matchProd = products.find(p => String(p.barcode).trim() === String(st.product_barcode).trim());
-                if (matchProd) {
-                    stockMap[matchProd.id] = Number(st.qty) || 0; 
-                }
-            });
-
-            // 初始化局部事务提交状态机
-            stockData = { emp_code: currentEmployee.code, currentStockMap: stockMap, additions: {} };
-
-            // 联动筛选框的默认值设置
-            if(!currentSelectedBrand) {
-                const brands = [...new Set(products.map(p => p.brand))];
-                currentSelectedBrand = brands.length > 0 ? brands[0] : null;
-                currentSelectedSpec = "ALL";
-            }
-            renderStockPage();
-        }
-
-        // 4. 执行更新/调整库存提交
-        async function submitStock(){
-            const addIds = Object.keys(stockData.additions);
-            let hasData = false; 
-            const updates = []; 
-
-            for(let id of addIds){
-                const p = products.find(x => String(x.id) === String(id));
-                if(!p || !p.barcode) continue; // 安全防火墙：未绑定核心条码的单品无法入库
-                
-                const specCase = p.pcs_per_case || 24; 
-                const specBox = p.pcs_per_box || 0;
-                
-                const dir = stockData.additions[id].dir || 'plus';
-                const addedCases = stockData.additions[id].cases || 0;
-                const addedBoxes = stockData.additions[id].boxes || 0;
-                const addedPcs = stockData.additions[id].pcs || 0;
-
-                // 核心计算公式：根据散装、三片盒装、整箱系数换算出纯散数（最小单位）
-                let delta = specBox > 0 
-                    ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs 
-                    : (addedCases * specCase) + addedPcs;
-                
-                if(delta > 0){
-                    hasData = true; 
-                    const currentTotal = stockData.currentStockMap[id] || 0;
-                    let newTotal = dir === 'plus' ? currentTotal + delta : currentTotal - delta;
-                    
-                    if (newTotal < 0) { 
-                        alert(`❌ 变更失败！[${p.product_name}] 的扣减量超出了当前车销库存的持有总数。`); 
-                        return; 
-                    }
-                    
-                    // 【新架构对齐】组装写入 van_stocks 的行元组数据
-                    updates.push({ 
-                        employee_code: stockData.emp_code, 
-                        product_barcode: String(p.barcode).trim(), 
-                        qty: Number(newTotal)
-                    });
-                }
-            }
-            
-            if(!hasData){ alert("提示：您未输入任何箱/盒/散数的变更变动量！"); return; }
-            
-            try {
-                // 【新架构对齐】通过 upsert 向新表提交覆盖。联合主键形式为：(employee_code, product_barcode)
-                await client.from('van_stocks').upsert(updates, { onConflict: 'employee_code,product_barcode' });
-                alert("🎉 车销库存调整成功！");
-                openStockManagement(); // 刷新回库存主页
-            } catch(ex) {
-                console.error(ex);
-                alert("❌ 数据提交异常，请检查网络链路");
-            }
-        }
-
-
-        // --- 视图层渲染与交互机制（保留原本完好逻辑） ---
-
-        function renderEmployees(){
-            document.getElementById('navTitle').innerText = "人员选择";
-            document.getElementById('navAction').innerText = "";
-            document.getElementById('back').classList.add('hide');
-            document.getElementById('searchBlock').classList.add('hide');
-            document.getElementById('alphabetSidebar').classList.add('hide');
-            document.getElementById('bottomBar').style.display = 'none';
-
-            if(employees.length === 0){
-                document.getElementById('list').innerHTML = '<div style="color:#8e8e93;padding:20px;text-align:center;">员工主表(employees)中未查询到任何人员数据</div>';
-                return;
-            }
-
-            let html = '';
-            employees.forEach(emp => {
-                html += `
-                <div class="item-card" onclick="openEmployee('${emp.employee_code}', '${emp.employee_name}')">
-                    <div>
-                        <div class="item-title">${emp.employee_name}</div>
-                        <div class="item-subtitle">工号: ${emp.employee_code}</div>
-                    </div>
-                    <div class="arrow-icon">❯</div>
-                </div>`;
-            });
-            document.getElementById('list').innerHTML = html;
-        }
-
-        function renderStores(){
-            document.getElementById('navTitle').innerText = `${currentEmployee.name} 的门店`;
-            renderStoresMenu();
-
-            const kw = document.getElementById('searchInput').value.trim().toLowerCase();
-            const filtered = stores.filter(s => 
-                (s.store_name && s.store_name.toLowerCase().includes(kw)) || 
-                (s.atom_code && String(s.atom_code).toLowerCase().includes(kw))
-            );
-
-            if(filtered.length === 0){
-                document.getElementById('list').innerHTML = '<div style="color:#8e8e93;padding:20px;text-align:center;">没有找到匹配的门店</div>';
-                return;
-            }
-
-            let html = '';
-            filtered.forEach(s => {
-                html += `
-                <div class="item-card" onclick="alert('选定门店: ${s.store_name || s.atom_code}')">
-                    <div>
-                        <div class="item-title">${s.store_name || '未命名门店'}</div>
-                        <div class="item-subtitle">编码: ${s.atom_code}</div>
-                    </div>
-                    <div class="arrow-icon">❯</div>
-                </div>`;
-            });
-            document.getElementById('list').innerHTML = html;
-        }
-
-        function renderStoresMenu(){
-            document.getElementById('navAction').innerText = "车销库存";
-            document.getElementById('bottomBar').style.display = 'none';
-        }
-
-        function renderStockPage(){
-            document.getElementById('navTitle').innerText = `${currentEmployee.name} 的库存`;
-            document.getElementById('navAction').innerText = "";
-
-            const brands = [...new Set(products.map(p => p.brand))].filter(Boolean);
-            const specs = ["ALL", ...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))].filter(Boolean);
-
-            let html = `
-            <div class="stock-header-actions">
-                <select class="filter-select" id="brandSel" onchange="changeStockFilter('brand', this.value)">
-                    ${brands.map(b => `<option value="${b}" ${b===currentSelectedBrand?'selected':''}>${b}</option>`).join('')}
-                </select>
-                <select class="filter-select" id="specSel" onchange="changeStockFilter('spec', this.value)">
-                    ${specs.map(s => `<option value="${s}" ${s===currentSelectedSpec?'selected':''}>${s === 'ALL' ? '全部规格' : s}</option>`).join('')}
-                </select>
-            </div>`;
-
-            const dispProds = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === 'ALL' || p.spec === currentSelectedSpec));
-
-            if(dispProds.length === 0){
-                html += '<div style="color:#8e8e93;padding:30px;text-align:center;">该筛选组合下无对应产品数据</div>';
-                document.getElementById('list').innerHTML = html;
-                renderStockBottomBar();
-                return;
-            }
-
-            dispProds.forEach(p => {
-                const totalPcs = stockData.currentStockMap[p.id] || 0;
-                const specCase = p.pcs_per_case || 24;
-                const specBox = p.pcs_per_box || 0;
-
-                // 统一的换算展示可读文本
-                let stockDesc = "";
-                if(specBox > 0){
-                    let rem = totalPcs;
-                    const c = Math.floor(rem / specCase); rem %= specCase;
-                    const b = Math.floor(rem / specBox); rem %= specBox;
-                    stockDesc = `${c}箱${b}盒${rem}散`;
-                } else {
-                    const c = Math.floor(totalPcs / specCase);
-                    const rem = totalPcs % specCase;
-                    stockDesc = `${c}箱${rem}散`;
-                }
-
-                const addObj = stockData.additions[p.id] || { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
-
-                html += `
-                <div class="stock-card">
-                    <div class="stock-info">
-                        <div class="stock-name">${p.product_name}</div>
-                        <div class="stock-meta">
-                            <span>规格: ${p.spec}</span>
-                            <span>条码: ${p.barcode || '无'}</span>
-                        </div>
-                        <div class="stock-current-badge">现有资产: ${stockDesc} (${totalPcs} 散)</div>
-                    </div>
-                    
-                    <!-- 调整模式切换 -->
-                    <div style="margin-top:10px; display:flex; align-items:center;">
-                        <span style="font-size:13px; color:#666;">调整性质:</span>
-                        <div class="dir-toggle">
-                            <div class="dir-btn ${addObj.dir==='plus'?'active':''}" onclick="setStockDir(${p.id}, 'plus')">增加</div>
-                            <div class="dir-btn ${addObj.dir==='minus'?'active':''}" onclick="setStockDir(${p.id}, 'minus')">减少</div>
-                        </div>
-                    </div>
-
-                    <!-- 箱数加减 -->
-                    <div class="counter-row">
-                        <span class="counter-label">整箱变更 (每箱 ${specCase} 散)</span>
-                        <div class="counter-ctrl">
-                            <button class="btn-minus" onclick="stepStockUnit(${p.id}, 'cases', -1)">-</button>
-                            <span class="counter-val" id="val-${p.id}-cases">${addObj.cases}</span>
-                            <button class="btn-plus" onclick="stepStockUnit(${p.id}, 'cases', 1)">+</button>
-                        </div>
-                    </div>
-
-                    <!-- 特殊盒装加减（例如奥利奥三片装） -->
-                    ${specBox > 0 ? `
-                    <div class="counter-row">
-                        <span class="counter-label">中盒变更 (每盒 ${specBox} 散)</span>
-                        <div class="counter-ctrl">
-                            <button class="btn-minus" onclick="stepStockUnit(${p.id}, 'boxes', -1)">-</button>
-                            <span class="counter-val" id="val-${p.id}-boxes">${addObj.boxes}</span>
-                            <button class="btn-plus" onclick="stepStockUnit(${p.id}, 'boxes', 1)">+</button>
-                        </div>
-                    </div>` : ''}
-
-                    <!-- 基础散数加减 -->
-                    <div class="counter-row">
-                        <span class="counter-label">单只散数变更</span>
-                        <div class="counter-ctrl">
-                            <button class="btn-minus" onclick="stepStockUnit(${p.id}, 'pcs', -1)">-</button>
-                            <span class="counter-val" id="val-${p.id}-pcs">${addObj.pcs}</span>
-                            <button class="btn-plus" onclick="stepStockUnit(${p.id}, 'pcs', 1)">+</button>
-                        </div>
-                    </div>
-                </div>`;
-            });
-
-            document.getElementById('list').innerHTML = html;
-            renderStockBottomBar();
-        }
-
-        function renderStockBottomBar(){
-            const bar = document.getElementById('bottomBar');
-            bar.style.display = 'flex';
-            bar.innerHTML = `
-                <button class="bottom-btn btn-secondary" onclick="handleBack()">取消返回</button>
-                <button class="bottom-btn btn-primary" onclick="submitStock()">确认提交变动</button>
-            `;
-        }
-
-        // --- 细粒度操作响应处理句柄 ---
-
-        function handleBack(){
-            if(STATE === 'STORE'){
-                STATE = 'EMPLOYEE';
-                currentEmployee = null;
-                renderEmployees();
-            } else if(STATE === 'STOCK'){
-                openEmployee(currentEmployee.code, currentEmployee.name);
-            }
-        }
-
-        function handleNavAction(){
-            if(STATE === 'STORE' && currentEmployee){
-                openStockManagement();
-            }
-        }
-
-        function handleSearch(){
-            if(STATE === 'STORE'){
-                renderStores();
-            }
-        }
-
-        function autoResetSearchState(){
-            document.getElementById('searchInput').value = "";
-        }
-
-        function changeStockFilter(type, val){
-            if(type === 'brand'){
-                currentSelectedBrand = val;
-                const filteredSpecs = [...new Set(products.filter(p => p.brand === val).map(p => p.spec))].filter(Boolean);
-                currentSelectedSpec = "ALL";
-            } else {
-                currentSelectedSpec = val;
-            }
-            renderStockPage();
-        }
-
-        function setStockDir(pid, dirStr){
-            if(!stockData.additions[pid]) stockData.additions[pid] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
-            stockData.additions[pid].dir = dirStr;
-            renderStockPage();
-        }
-
-        function stepStockUnit(pid, unitType, stepVal){
-            if(!stockData.additions[pid]) stockData.additions[pid] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
-            let currentVal = stockData.additions[pid][unitType] || 0;
-            currentVal += stepVal;
-            if(currentVal < 0) currentVal = 0;
-            stockData.additions[pid][unitType] = currentVal;
-            document.getElementById(`val-${pid}-${unitType}`).innerText = currentVal;
-        }
-    </script>
+// 启动页面初始化
+init();
+</script>
 </body>
 </html>
