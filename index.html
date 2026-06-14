@@ -1,85 +1,12 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8" />
-  <title>开单+库存</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <style>
-    :root {
-      --primary: #4A154B;        
-      --primary-hover: #360f37; 
-      --accent: #ffb81c;        
-      --bg-main: #f4f2f5;       
-      --text-main: #1f1121;     
-      --text-muted: #756676;    
-      --card-bg: #ffffff;       
-    }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
-    .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}
-    .top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }
-    .back-btn:active { background: #e2dde3; transform: scale(0.97); }
-    .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
-    .editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }
-    #list { width: 100%; }
-    .big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }
-    .emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }
-    .emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }
-    .emp-card:active { background: #f3e2f5; transform: scale(0.97); }
-    .store-container { padding-right: 24px; box-sizing: border-box; }
-    .letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }
-    .item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }
-    .item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .prod-info { flex: 1; min-width: 0; }
-    .prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }
-    .picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }
-    .picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }
-    .picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
-    .ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }
-    .ios-picker:focus { border-color: var(--primary); background: #fff; }
-    .aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
-    .aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }
-    .aftersale-options { display: flex; gap: 14px; margin-top: 2px; }
-    .aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
-    .store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-    .btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }
-    .btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }
-    .btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }
-    .btn-gate-newstore { background: linear-gradient(135deg, #ff9c6e, #ff4d4f); }
-    .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }
-    .smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }
-    .date-picker-wrapper { position: relative; display: inline-block; }
-    .real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-    .search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }
-    .search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }
-    .search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }
-    .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
-    .search-clear-btn:active { background: #d0c9d2; }
-    .btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }
-    .btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
-    .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
-    .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
-    .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
-    .spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }
-    .spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }
-    .spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
-    .brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }
-    .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
-    .hide { display:none !important; }
-    .history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-    .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
-    .stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }
-    .stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
-    .stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }
-    .alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }
-    .amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }
-    .amount-summary-banner strong { font-size: 15px; }
-    .detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
-    .detail-grid-item { display: flex; justify-content: space-between; align-items: center; }
-  </style>
-</head>
-<body>
+<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8" /><title>开单+库存</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><style>:root {
+  --primary: #4A154B;        
+  --primary-hover: #360f37; 
+  --accent: #ffb81c;        
+  --bg-main: #f4f2f5;       
+  --text-main: #1f1121;     
+  --text-muted: #756676;    
+  --card-bg: #ffffff;       
+}body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}.top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }.back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }.back-btn:active { background: #e2dde3; transform: scale(0.97); }.back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }.editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }#list { width: 100%; }.big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }.emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }.emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }.emp-card:active { background: #f3e2f5; transform: scale(0.97); }.store-container { padding-right: 24px; box-sizing: border-box; }.letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }.item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.prod-info { flex: 1; min-width: 0; }.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }.ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }.ios-picker:focus { border-color: var(--primary); background: #fff; }.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }.aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }.store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }.btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }.btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }.btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }.btn-gate-newstore { background: linear-gradient(135deg, #ff9c6e, #ff4d4f); }.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }.date-picker-wrapper { position: relative; display: inline-block; }.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }.search-clear-btn:active { background: #d0c9d2; }.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }.spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }.spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }.spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }.brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }.sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }.hide { display:none !important; }.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }.stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }.stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }.alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }.amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }.amount-summary-banner strong { font-size: 15px; }.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }</style></head><body>
 
 <div class="card">
   <div id="searchBlock" class="search-wrapper">
@@ -99,8 +26,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.3/dist/index.js"></script>
 <script>
-const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
-const SUPABASE_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
+const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let STATE = "EMP"; 
@@ -135,11 +62,6 @@ function formatQtyToUnits(totalPcs, specCase, specBox) {
   }
 }
 
-function getPriceDecimalPlaces(prodId) {
-  const idNum = Number(prodId);
-  return (idNum >= 49 && idNum <= 55) ? 2 : 1;
-}
-
 function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
   let saleAmount = 0; 
   let giftAmount = 0; 
@@ -147,8 +69,8 @@ function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, retur
   let scrapAmount = 0;    
 
   const isOreo = isSpecialSpecOreo(productObj);
-  const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
-  const specBox = isOreo ? (productObj.pcs_per_box || 6) : (productObj.pcs_per_box || 0);
+  const defaultPrice = productObj.default_price || 15;
+  const specBox = productObj.pcs_per_box || 0;
 
   if (isOreo) {
     saleAmount = qty * livePrice;
@@ -182,18 +104,26 @@ function parseReturnHandleText(val) {
 
 async function init(){
   try {
-    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载新版商品目录...</div>';
     
-    // 【更新点】只从最新的 employees 表取数据
-    const e = await client.from('employees').select('*');
-    const p = await client.from('products').select('*');
+    const e = await client.from('employees').select('employee_code, name').eq('is_active', true);
+    const p = await client.from('products').select('*').eq('is_active', true);
     
-    employees = e.data || [];
+    employees = (e.data || []).map(x => ({
+      employee_code: x.employee_code,
+      employee_name: x.name 
+    }));
+
+    // 【新表条码映射】使用新表的 barcode 映射给前端唯一 id，将 flavor 映射给展示层名称
     products = (p.data || []).map(x => ({ 
       ...x, 
-      spec: (x.spec || '常规款').trim(),
-      pcs_per_box: parseInt(x.pcs_per_box) || 0 
+      id: x.barcode,             
+      product_name: x.flavor,    
+      spec: (x.spec || '常规').trim(),
+      pcs_per_box: parseInt(x.pcs_per_box) || 0,
+      pcs_per_case: parseInt(x.pcs_per_case) || 24
     }));
+    
     renderEmployees();
   } catch (err) {
     console.error(err);
@@ -234,8 +164,7 @@ function renderEmployees(){
   document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
 
   const k = getSearch();
-  // 【更新点】对照最新结构，员工姓名字段改用 e.name，编码改用 e.employee_code
-  const list = employees.filter(e => (e.name || '').includes(k) || (e.employee_code || '').includes(k));
+  const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
 
   if (list.length === 0) {
     document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:30px;">⚠️ 未找到匹配的员工</div>`;
@@ -244,9 +173,9 @@ function renderEmployees(){
 
   document.getElementById('list').innerHTML = `
     <div class="emp-grid">
-      ${list.map(e => `
-        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.name}')">
-          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.name}</strong>
+      ${list.map(e=>`
+        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
+          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
           <div class='sub' style="font-size:12px;">${e.employee_code}</div>
         </div>
       `).join('')}
@@ -254,6 +183,7 @@ function renderEmployees(){
   `;
 }
 
+// 【彻底重构】使用新表 employee_store_assets 直接拉取门店编码与名称，移除旧 stores_dim 依赖
 async function openEmployee(code, name){
   autoResetSearchState();
   STATE = 'STORE';
@@ -262,16 +192,21 @@ async function openEmployee(code, name){
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载对应门店...</div>';
 
-  // 【更新点】依照最新设计，直接通过专属关联表 employee_store_assets 提取该员工负责的门店资产列表，不管无关人员。
-  const r = await client.from('employee_store_assets').select('atom_code, store_name').eq('employee_code', code);
+  const { data: assetsData, error } = await client.from('employee_store_assets').select('atom_code, store_name').eq('employee_code', code);
   
-  stores = (r.data || []).map(item => ({
-    atom_code: String(item.atom_code).trim(),
-    store_name: (item.store_name || '').trim()
-  })).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
-  
+  if (error) {
+    console.error("加载门店失败:", error);
+    document.getElementById('list').innerHTML = `<div class="sub" style="color:red;padding:20px;">❌ 门店资产表加载失败: ${error.message}</div>`;
+    return;
+  }
+
+  stores = (assetsData || []).map(x => ({
+    atom_code: String(x.atom_code).trim(),
+    store_name: (x.store_name || '未命名门店').trim()
+  })).sort((a, b) => a.store_name.localeCompare(b.store_name, 'zh-CN'));
+
   renderStores();
 }
 
@@ -401,660 +336,782 @@ function triggerCreateNewStore() {
     if (storeName !== null) alert("门店名称不能为空！");
     return;
   }
+  
   const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
   const tempAtomCode = `NEW_${randomSuffix}`;
-  isNewStoreFlow = true;
+
+  isNewStoreFlow = true; 
   currentStore = { atom: tempAtomCode, name: storeName.trim() };
   templateEditOrNew(null, null, null, tempAtomCode, storeName.trim());
 }
 
+// 【新表适配】车存对接 van_stocks表 (product_barcode)
 async function openStockManagement(){
   STATE = 'STOCK';
-  orderData = null;
+  orderData = null; 
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
-  document.getElementById('alphabetSidebar').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
-  document.getElementById('searchBlock').classList.add('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+  document.getElementById('searchBlock').classList.add('hide'); 
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载车销可用库存...</div>';
 
-  // 【更新点】依照最新结构，指定从 van_stocks 库表中按 employee_code 取对应数据
-  const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
-  
+  const { data: currentStocks } = await client.from('van_stocks').select('product_barcode, qty').eq('employee_code', currentEmployee.code);
   const stockMap = {};
-  (currentStocks || []).forEach(st => {
-    // 【更新点】库存表用 product_barcode 作为关联标识
-    stockMap[st.product_barcode] = Number(st.qty) || 0;
-  });
+  (currentStocks || []).forEach(st => { stockMap[st.product_barcode] = Number(st.qty) || 0; });
 
-  stockData = { 
-    emp_code: currentEmployee.code, 
-    currentStockMap: stockMap, 
-    additions: {} 
-  };
+  stockData = { emp_code: currentEmployee.code, currentStockMap: stockMap, additions: {} };
 
   if(!currentSelectedBrand) {
     const brands = [...new Set(products.map(p => p.brand))];
     currentSelectedBrand = brands.length > 0 ? brands[0] : null;
-    currentSelectedSpec = "ALL";
   }
+  const matchedSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))].filter(Boolean);
+  if(matchedSpecs.length > 0) currentSelectedSpec = matchedSpecs[0];
+
   renderStockPage();
 }
 
 function generateFilterHeaderHtml() {
-  const brands = [...new Set(products.map(p => p.brand))];
+  const brands = [...new Set(products.map(p => p.brand))].filter(Boolean);
   if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
   
-  const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))];
-  if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) {
-    currentSelectedSpec = "ALL";
+  const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))].filter(Boolean);
+  if (!availableSpecs.includes(currentSelectedSpec) && availableSpecs.length > 0) {
+    currentSelectedSpec = availableSpecs[0];
   }
 
   return `
-    <div class="brand-nav">
-      ${brands.map(b => `
-        <span class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="switchStockBrand('${b}')">${b}</span>
-      `).join('')}
+    <div class='brand-nav'>
+      ${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}
     </div>
-    <div class="spec-nav">
-      <span class="spec-badge ${currentSelectedSpec === 'ALL' ? 'active' : ''}" onclick="switchStockSpec('ALL')">全部规格</span>
-      ${availableSpecs.map(sp => `
-        <span class="spec-badge ${sp === currentSelectedSpec ? 'active' : ''}" onclick="switchStockSpec('${sp}')">${sp}</span>
-      `).join('')}
+    <div class='spec-nav'>
+      ${availableSpecs.map(sp => `<div class="spec-badge ${currentSelectedSpec === sp ? 'active' : ''}" onclick="selectSpec('${sp}')">${sp}</div>`).join('')}
     </div>
+    <div class='brand'>📂 联动定位：${currentSelectedBrand || '未选择'} ➔ ${currentSelectedSpec}</div>
   `;
 }
 
-function switchStockBrand(brandName) {
-  currentSelectedBrand = brandName;
-  currentSelectedSpec = "ALL";
-  if (STATE === 'STOCK') renderStockPage();
-  else if (STATE === 'ORDER') renderOrderPage();
+function selectBrand(brandName) { 
+  currentSelectedBrand = brandName; 
+  const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))].filter(Boolean);
+  currentSelectedSpec = availableSpecs.length > 0 ? availableSpecs[0] : "";
+  if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 
-function switchStockSpec(specName) {
-  currentSelectedSpec = specName;
-  if (STATE === 'STOCK') renderStockPage();
-  else if (STATE === 'ORDER') renderOrderPage();
+function selectSpec(specName) { 
+  currentSelectedSpec = specName; 
+  if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
+}
+
+function makePureQtyOptionsHtml(max, current) {
+  let html = '';
+  for(let i=0; i<=max; i++) {
+    html += `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`;
+  }
+  return html;
+}
+
+function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
+  let html = '';
+  let start = Math.max(0.1, centerPrice - 15);
+  let end = centerPrice + 30;
+  let step = 0.1; 
+  for (let p = start; p <= end; p += step) {
+    let val = +p.toFixed(1);
+    html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.005 ? 'selected' : ''}>${val.toFixed(1)}</option>`;
+  }
+  return html;
 }
 
 function renderStockPage(){
-  let html = `
-    <div class="big-store-title">📦 车销库存管理</div>
-    <div class="sub" style="margin-bottom:14px;">当前员工：<strong>${currentEmployee.name}</strong> (${currentEmployee.code})</div>
-  `;
-  
-  html += generateFilterHeaderHtml();
-  
-  const filteredProducts = products.filter(p => {
-    if (p.brand !== currentSelectedBrand) return false;
-    if (currentSelectedSpec !== "ALL" && p.spec !== currentSelectedSpec) return false;
-    return true;
-  });
+  STATE = 'STOCK';
+  document.getElementById('back').classList.remove('hide');
+  const displayProducts = products.filter(p => p.brand === currentSelectedBrand && p.spec === currentSelectedSpec);
 
-  if(filteredProducts.length === 0){
-    html += `<div class="sub" style="text-align:center;padding:30px;">暂无该品类商品</div>`;
-  } else {
-    filteredProducts.forEach(p => {
-      // 【更新点】用 barcode 提取对应的库存数据量
-      const currentTotal = stockData.currentStockMap[p.barcode] || 0;
-      const displayCurrentStr = formatQtyToUnits(currentTotal, parseInt(p.pcs_per_case)||1, p.pcs_per_box||0);
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 主体：${currentEmployee.name}</div>
+    ${generateFilterHeaderHtml()}
+    ${displayProducts.map(p => {
+      const specCase = p.pcs_per_case || 24; 
+      const specBox = p.pcs_per_box || 0;
       
-      const savedInput = stockData.additions[p.barcode] || { type: 'ADD', qty: 0 };
+      const totalPcs = stockData.currentStockMap[p.id] || 0; 
+      const formattedStockText = formatQtyToUnits(totalPcs, specCase, specBox);
 
-      html += `
+      const currentDir = stockData.additions[p.id]?.dir || 'plus';
+      const curC = stockData.additions[p.id]?.cases || 0;
+      const curB = stockData.additions[p.id]?.boxes || 0;
+      const curP = stockData.additions[p.id]?.pcs || 0;
+
+      return `
         <div class="stock-row">
-          <div class="prod-name" style="color:var(--primary);">${p.name}</div>
-          <div class="sub" style="font-size:12px;">条码: ${p.barcode} | 当前库存: <span style="color:var(--primary);font-weight:bold;">${displayCurrentStr}</span></div>
-          
+          <div style="font-weight:600; font-size:15px; color:var(--text-main);">${p.product_name}</div>
+          <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
+            当前车存量: <strong>${formattedStockText}</strong> (${totalPcs}个)
+          </div>
           <div class="stock-input-group">
-            <select class="stock-dir-select" onchange="updateStockActionType('${p.barcode}', this.value)">
-              <option value="ADD" ${savedInput.type==='ADD'?'selected':''}>➕ 增加车载库存</option>
-              <option value="SUB" ${savedInput.type==='SUB'?'selected':''}>➖ 扣减车载库存</option>
+            <select class="stock-dir-select" onchange="updateStockInput('${p.id}', 'dir', this.value)">
+              <option value="plus" ${currentDir === 'plus' ? 'selected' : ''}>➕ 增库</option>
+              <option value="minus" ${currentDir === 'minus' ? 'selected' : ''}>➖ 减库</option>
             </select>
             
-            <div class="control-group" style="max-width:100%; margin-top:4px;">
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'CASE', this.value)">
-                  ${Array.from({length: 101}, (_, i) => `<option value="${i}" ${ (savedInput.cases||0)===i?'selected':'' }>${i}</option>`).join('')}
-                </select>
-                <span class="unit-txt">件</span>
-              </div>
-              
-              ${ p.pcs_per_box > 0 ? `
-                <div class="picker-wrapper">
-                  <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'BOX', this.value)">
-                    ${Array.from({length: parseInt(p.pcs_per_case/p.pcs_per_box)+1}, (_, i) => `<option value="${i}" ${ (savedInput.boxes||0)===i?'selected':'' }>${i}</option>`).join('')}
-                  </select>
-                  <span class="unit-txt">盒</span>
-                </div>
-              ` : '' }
-
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockActionQty('${p.barcode}', 'PCS', this.value)">
-                  ${Array.from({length: (p.pcs_per_box > 0 ? p.pcs_per_box : parseInt(p.pcs_per_case)) + 1}, (_, i) => `<option value="${i}" ${ (savedInput.pcs||0)===i?'selected':'' }>${i}</option>`).join('')}
-                </select>
-                <span class="unit-txt">个</span>
-              </div>
+            <div class="picker-wrapper">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">箱</span>
+            </div>
+            
+            <div class="picker-wrapper ${specBox === 0 ? 'hide' : ''}">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
+            </div>
+            
+            <div class="picker-wrapper">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">散</span>
             </div>
           </div>
         </div>
       `;
+    }).join('')}
+    <button class='float-submit' onclick='submitStock()'>💾 更新车存</button>
+  `;
+}
+
+function updateStockInput(prodId, type, val){
+  if(!stockData.additions[prodId]) stockData.additions[prodId] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
+  if(type === 'dir') stockData.additions[prodId].dir = val;
+  else stockData.additions[prodId][type] = parseInt(val) || 0;
+}
+
+// 【新表适配】更新车存：对接 van_stocks 表
+async function submitStock(){
+  const addIds = Object.keys(stockData.additions);
+  let hasData = false; const updates = []; 
+
+  for(let id of addIds){
+    const p = products.find(x => x.id == id);
+    const specCase = p.pcs_per_case || 24; 
+    const specBox = p.pcs_per_box || 0;
+    
+    const dir = stockData.additions[id].dir || 'plus';
+    const addedCases = stockData.additions[id].cases || 0;
+    const addedBoxes = stockData.additions[id].boxes || 0;
+    const addedPcs = stockData.additions[id].pcs || 0;
+
+    let delta = specBox > 0 ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs : (addedCases * specCase) + addedPcs;
+    if(delta > 0){
+      hasData = true; const currentTotal = stockData.currentStockMap[id] || 0;
+      let newTotal = dir === 'plus' ? currentTotal + delta : currentTotal - delta;
+      if (newTotal < 0) { alert(`❌ [${p.product_name}] 车存可用数不足扣减！`); return; }
+      updates.push({ employee_code: stockData.emp_code, product_barcode: id, qty: newTotal });
+    }
+  }
+  if(!hasData){ alert("请输入变更量！"); return; }
+  await client.from('van_stocks').upsert(updates, { onConflict: 'employee_code,product_barcode' });
+  openStockManagement();
+}
+
+// 【新表适配】查询历史订单：对接 sales_orders
+async function openStoreHistory(atom, name) {
+  STATE = 'HISTORY'; currentStore = { atom, name };
+  document.getElementById('back').classList.remove('hide'); 
+  document.getElementById('editStateBadge').classList.add('hide'); 
+  document.getElementById('alphabetSidebar').classList.add('hide'); 
+  document.getElementById('searchBlock').classList.add('hide'); 
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据流...</div>';
+  
+  // 新表按创建时间 created_at 或订单编号 order_no 分类。这里按 created_at 降序。
+  const { data: ordersData } = await client.from('sales_orders').select('*').eq('atom_code', atom).order('created_at', { ascending: false });
+  historyOrders = ordersData || []; 
+
+  if(historyOrders.length > 0) {
+    const oNos = historyOrders.map(o => o.order_no);
+    const { data: itemsData } = await client.from('sales_order_items').select('*').in('order_no', oNos);
+    const allItems = itemsData || [];
+
+    historyOrders.forEach(o => {
+      let sSum = 0; let gSum = 0; let resSum = 0; let scrSum = 0;
+      const oItems = allItems.filter(it => it.order_no === o.order_no);
+      oItems.forEach(it => {
+        const pObj = products.find(x => x.id == it.barcode);
+        if(!pObj) return;
+        const parsedReturn = parseReturnHandleText(it.remark); // remark 承载售后退货数据
+        const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
+        sSum += rowRes.saleAmount; 
+        gSum += rowRes.giftAmount; 
+        resSum += rowRes.restoreAmount; 
+        scrSum += rowRes.scrapAmount;
+      });
+      o.skuCount = oItems.length;
+      o.saleSum = sSum; 
+      o.giftSum = gSum; 
+      o.restoreSum = resSum; 
+      o.scrapSum = scrSum;
+      o.netRevenue = sSum - scrSum; 
     });
   }
-
-  html += `<button id="submitStockBtn" class="float-submit" onclick="submitStockChanges()">🚀 提交修改</button>`;
-  document.getElementById('list').innerHTML = html;
-}
-
-function updateStockActionType(barcode, val) {
-  if (!stockData.additions[barcode]) {
-    stockData.additions[barcode] = { type: 'ADD', cases: 0, boxes: 0, pcs: 0 };
-  }
-  stockData.additions[barcode].type = val;
-}
-
-function updateStockActionQty(barcode, unitType, val) {
-  if (!stockData.additions[barcode]) {
-    stockData.additions[barcode] = { type: 'ADD', cases: 0, boxes: 0, pcs: 0 };
-  }
-  const intV = parseInt(val) || 0;
-  if(unitType === 'CASE') stockData.additions[barcode].cases = intV;
-  else if(unitType === 'BOX') stockData.additions[barcode].boxes = intV;
-  else if(unitType === 'PCS') stockData.additions[barcode].pcs = intV;
-}
-
-async function submitStockChanges(){
-  const submitBtn = document.getElementById('submitStockBtn');
-  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '正在提交...'; }
-
-  try {
-    const ops = [];
-    for (const barcode in stockData.additions) {
-      const item = stockData.additions[barcode];
-      const p = products.find(x => x.barcode === barcode);
-      if(!p) continue;
-      
-      const cSize = parseInt(p.pcs_per_case) || 1;
-      const bSize = parseInt(p.pcs_per_box) || 0;
-      const totalDelta = (item.cases || 0) * cSize + (item.boxes || 0) * bSize + (item.pcs || 0);
-      
-      if(totalDelta === 0) continue;
-      
-      const currentStock = stockData.currentStockMap[barcode] || 0;
-      let newStockVal = currentStock;
-      
-      if(item.type === 'ADD') {
-        newStockVal = currentStock + totalDelta;
-      } else {
-        newStockVal = currentStock - totalDelta;
-        if(newStockVal < 0) newStockVal = 0; 
-      }
-      
-      ops.push({
-        employee_code: stockData.emp_code,
-        product_barcode: barcode,
-        qty: newStockVal,
-        updated_at: new Date().toISOString()
-      });
-    }
-
-    if(ops.length === 0) {
-      alert("💡 您没有输入任何库存修改项！");
-      if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交修改'; }
-      return;
-    }
-
-    // 【更新点】针对新版 van_stocks 执行 upsert 覆盖写入
-    for(const op of ops) {
-      const { error } = await client.from('van_stocks').upsert(op, { onConflict: 'employee_code,product_barcode' });
-      if(error) throw error;
-    }
-
-    alert("✨ 库存更新成功！");
-    openStockManagement();
-  } catch (err) {
-    console.error(err);
-    alert("❌ 库存数据更新失败，请检查网络重试！");
-    if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交修改'; }
-  }
-}
-
-async function openStoreHistory(atomCode, storeName) {
-  autoResetSearchState();
-  STATE = 'HISTORY';
-  orderData = null; 
-  isNewStoreFlow = false;
-  currentStore = { atom: atomCode, name: storeName };
-  document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
-  document.getElementById('alphabetSidebar').classList.add('hide');
-  document.getElementById('searchBlock').classList.add('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在历史账单...</div>';
-
-  const { data: orders } = await client.from('sales_orders')
-    .select('*')
-    .eq('atom_code', atomCode)
-    .order('created_at', { ascending: false });
-
-  historyOrders = orders || [];
   renderHistory();
 }
 
 function renderHistory(){
   STATE = 'HISTORY';
-  orderData = null; 
-  document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
-  document.getElementById('searchBlock').classList.add('hide');
-
+  document.getElementById('editStateBadge').classList.add('hide'); 
   const isTemp = String(currentStore.atom).startsWith('NEW_');
-
-  let html = `
-    <div class="big-store-title" style="margin-bottom:2px;">${currentStore.name}</div>
-    <div class="sub" style="margin-bottom:14px;">门店编码：${currentStore.atom} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">新门店</span>' : ''}</div>
-    <button class="btn-new-order" onclick="templateEditOrNew(null, null, null, '${currentStore.atom}', '${currentStore.name}')">＋ 开始销售开单</button>
-    <div style='font-size:15px; font-weight:700; color:var(--primary); margin: 15px 0 8px 4px;'>历史派单账单 (${historyOrders.length})</div>
-  `;
-
-  if(historyOrders.length === 0){
-    html += `<div class="sub" style="text-align:center;padding:40px;color:#aaa;">🏪 暂无该门店的历史开单记录</div>`;
-  } else {
-    historyOrders.forEach(o => {
-      const dtStr = new Date(o.created_at).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'});
-      html += `
-        <div class="history-item">
-          <div style="width:100%; display:flex; justify-content:between; align-items:center;">
-            <span style="font-size:12px; color:var(--text-muted); font-weight:500;">📅 ${dtStr}</span>
-            <span style="font-size:12px; background:#e8eaf6; color:#3f51b5; padding:2px 6px; border-radius:4px; font-weight:bold; margin-left:auto;">${o.status === 'completed' ? '已完成' : '已归档'}</span>
+  document.getElementById('list').innerHTML = `
+    <div class="big-store-title">${currentStore.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">新门店</span>' : ''}</div>
+    <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
+    ${historyOrders.map(o => {
+        const bDate = o.created_at ? o.created_at.split('T')[0] : '未知日期';
+        return `
+        <div class="history-item" onclick="viewOrderDetail('${o.order_no}', '${bDate}', false)">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:700; color:var(--text-muted);">单号: ${o.order_no}</span>
+            <span style="color:var(--primary); font-size:14px;">详情 →</span>
           </div>
-          <div style="font-size:15px; font-weight:700; margin: 2px 0;">单号: <span style="color:var(--primary);">${o.order_no}</span></div>
-          <div style="font-size:14px; font-weight:600; color:#2e7d32;">💰 实付总金额: ¥${Number(o.total_amount).toFixed(2)}</div>
-          ${o.remark ? `<div class="sub" style="font-size:12px; background:#f5f5f5; width:100%; padding:6px; box-sizing:border-box; border-radius:4px;">备注: ${o.remark}</div>` : ''}
-          <div style="margin-top: 6px; display:flex; gap:8px; width:100%; justify-content:flex-end;">
-            <button class="smallbtn" onclick="viewOrderDetail('${o.id}', '${o.created_at}', false)">查看明细</button>
-            <button class="smallbtn" style="background:#fff7eb; border-color:#f5dab1; color:#e6a23c; font-weight:bold;" onclick="templateEditOrNew('${o.id}', '${o.order_no}', '${o.remark}', '${o.atom_code}', '${o.store_name}')">修改单据</button>
+          <div style="font-size: 13px; color: var(--text-muted); line-height:1.45; margin-top:4px;">
+            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实收：${(o.netRevenue||0).toFixed(1)} 元</span><br>
+            品项数: ${o.skuCount || 0} 款 | 日期: ${bDate}<br>
+            销售额: ${(o.saleSum||0).toFixed(1)} 元 | 🔴 过期扣减: ${(o.scrapSum||0).toFixed(1)} 元
           </div>
         </div>
-      `;
-    });
-  }
-  document.getElementById('list').innerHTML = html;
+      `}).join('')}
+  `;
 }
 
-async function viewOrderDetail(orderId, createdAt, fromReport=false) {
-  STATE = 'DETAIL';
-  orderData = null;
+// 【新表适配】查看明细：对接 sales_order_items
+async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
+  STATE = 'DETAIL'; 
   document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
-  document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
-  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据明细...</div>';
+  
+  const { data: items } = await client.from('sales_order_items').select('*').eq('order_no', orderNo);
+  
+  let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
+  let detailSaleSum = 0; let detailGiftSum = 0; let detailRestoreSum = 0; let detailScrapSum = 0;
 
-  const orderMaster = fromReport 
-    ? historyOrders.find(h => String(h.id) === String(orderId))
-    : historyOrders.find(h => String(h.id) === String(orderId));
-    
-  if(!orderMaster) {
-    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 找不到单据主表数据</div>';
+  items.forEach(it => {
+    const pObj = products.find(x => x.id == it.barcode);
+    if(!pObj) return;
+    const parsedReturn = parseReturnHandleText(it.remark);
+    const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
+    detailSaleSum += rowRes.saleAmount; 
+    detailGiftSum += rowRes.giftAmount; 
+    detailRestoreSum += rowRes.restoreAmount; 
+    detailScrapSum += rowRes.scrapAmount;
+  });
+  
+  let detailNetRevenue = detailSaleSum - detailScrapSum;
+
+  document.getElementById('list').innerHTML = `
+    <div class="big-store-title">${currentStore.name}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:-8px 0 10px 12px;">单号：${orderNo}</div>
+    <div class="amount-summary-banner" style="line-height:1.55;">
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>账单实收：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
+      商品总销售：${detailSaleSum.toFixed(1)} 元 | 🔴 过期收回损耗：${detailScrapSum.toFixed(1)} 元
+    </div>
+    <div style="display:flex; gap:10px; margin: 10px 0;">
+      <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c;" onclick="editExistingOrder('${orderNo}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
+      <button class="smallbtn" style="background:#fef0f0; color:#f56c6c; border-color:#fde2e2;" onclick="deleteExistingOrder('${orderNo}', '${rawItemsJSON}')">🗑️ 删除订单</button>
+    </div>
+    ${items.map(it => {
+      const p = products.find(x => x.id == it.barcode) || { product_name: '未知口味', spec: '常规' };
+      const parsedReturn = parseReturnHandleText(it.remark);
+      
+      const rowRes = getLiveRowAmounts(p, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
+      const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount;
+
+      return `
+        <div class='item'>
+          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.product_name}</div>
+          <div class="detail-grid-container">
+            <div class="detail-grid-item">
+              <span>实收单项: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
+            </div>
+            <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
+              <span>正常销售: <strong>${it.qty}</strong> 件 × ${Number(it.unit_price).toFixed(1)}元</span>
+            </div>
+            <div class="detail-grid-item">
+              <span>搭送赠品: <span style="color:#1890ff; font-weight:bold;">${it.gift_qty || 0}</span> 袋</span>
+            </div>
+            <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
+              <span>过期收回: <span style="color:red; font-weight:bold;">${parsedReturn.handle === 'SCRAP' ? parsedReturn.qty : 0}</span> 个</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('')}
+  `;
+}
+
+// 【新表适配】销毁并倒回车存量 (van_stocks)
+async function deleteExistingOrder(orderNo, rawItemsEncoded) {
+  if (!confirm("确定要彻底销毁本笔账单记录并回滚车存数量吗？")) return;
+
+  const listEl = document.getElementById('list');
+  const isFromReport = listEl.getAttribute('data-from-report') === 'true';
+  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在撤销单据并返还车存...</div>';
+
+  try {
+    const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
+
+    const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
+    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
+
+    const stockUpdates = [];
+    items.forEach(it => {
+      const parsedReturn = parseReturnHandleText(it.remark);
+      const pObj = products.find(x => x.id == it.barcode);
+      if (!pObj) return;
+
+      const saleBags = Number(it.qty || 0);
+      const giftBags = Number(it.gift_qty || 0);
+      const returnBags = Number(parsedReturn.qty || 0);
+
+      let oldNetImpact = saleBags + giftBags;
+      if (parsedReturn.handle === 'RESTORE') {
+        oldNetImpact -= returnBags;
+      }
+
+      const restoredStock = Number(liveStockMap[it.barcode] || 0) + oldNetImpact;
+      stockUpdates.push({
+        employee_code: currentEmployee.code,
+        product_barcode: it.barcode,
+        qty: restoredStock
+      });
+    });
+
+    await client.from('sales_order_items').delete().eq('order_no', orderNo);
+    await client.from('sales_orders').delete().eq('order_no', orderNo);
+
+    if (stockUpdates.length > 0) {
+      await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
+    }
+
+    if (isFromReport) {
+      openSaleReport(selectedReportDate);
+    } else {
+      openStoreHistory(currentStore.atom, currentStore.name);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ 销毁失败，请重试");
+    openStoreHistory(currentStore.atom, currentStore.name);
+  }
+}
+
+// 【新表适配】日报统计对接：通过 sales_orders 表过滤
+async function openSaleReport(targetDate) {
+  STATE = 'REPORT';
+  orderData = null;
+  document.getElementById('back').classList.remove('hide'); 
+  document.getElementById('editStateBadge').classList.add('hide'); 
+  document.getElementById('alphabetSidebar').classList.add('hide'); 
+  document.getElementById('searchBlock').classList.add('hide');
+
+  if(!targetDate) {
+    const todayObj = new Date();
+    targetDate = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+  }
+  selectedReportDate = targetDate;
+  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在统计日报数据...</div>`;
+
+  // 用 Postgres的 timestamp 前缀匹配日期字符串
+  const { data: dayOrders } = await client.from('sales_orders')
+    .select('*')
+    .eq('employee_code', currentEmployee.code)
+    .gte('created_at', `${targetDate}T00:00:00`)
+    .lte('created_at', `${targetDate}T23:59:59`);
+
+  if(!dayOrders || dayOrders.length === 0) {
+    renderReportHtml(targetDate, 0, 0, 0, 0, []);
     return;
   }
 
-  const { data: items } = await client.from('sales_order_items').select('*').eq('order_no', orderMaster.order_no);
+  const oNos = dayOrders.map(o => o.order_no);
+  const { data: dayItems } = await client.from('sales_order_items').select('*').in('order_no', oNos);
+  const itemsList = dayItems || [];
+
+  let dayTotalSale = 0; let dayTotalGiftAmt = 0; let dayTotalScrapAmt = 0;
+  let totalGiftPcs = 0; let totalScrapPcs = 0;
   
-  let html = `
-    <div class="big-store-title" style="margin-bottom:2px;">🧾 单据交易明细</div>
-    <div class="sub" style="margin-bottom:12px;">单号：<strong>${orderMaster.order_no}</strong></div>
-    <div class="amount-summary-banner" style="margin-bottom:14px; background:#fff;">
-      <div style="margin-bottom:4px;">🏪 门店: <strong>${orderMaster.store_name}</strong> (${orderMaster.atom_code})</div>
-      <div style="margin-bottom:4px;">📅 时间: ${new Date(orderMaster.created_at).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}</div>
-      <div style="font-size:16px; color:#2e7d32; margin-top:6px;">💰 实付总金额: <strong>¥${Number(orderMaster.total_amount).toFixed(2)}</strong></div>
-      ${orderMaster.remark ? `<div style="margin-top:4px; color:#c62828;">📝 备注: ${orderMaster.remark}</div>` : ''}
-    </div>
-    <div style="font-weight:700; margin:10px 0 6px 4px; color:var(--primary);">商品销售清单 (${(items||[]).length})</div>
-  `;
+  const orderSummaryMap = {};
 
-  if(!items || items.length === 0) {
-    html += `<div class="sub" style="text-align:center; padding:20px;">该单据下无任何商品明细</div>`;
-  } else {
-    items.forEach(it => {
-      const matchedP = products.find(p => p.barcode === it.barcode);
-      const specCase = matchedP ? (parseInt(matchedP.pcs_per_case) || 1) : 1;
-      const specBox = matchedP ? (parseInt(matchedP.pcs_per_box) || 0) : 0;
-      
-      const qtyPcs = Number(it.qty) || 0;
-      const displayQtyStr = formatQtyToUnits(qtyPcs, specCase, specBox);
+  dayOrders.forEach(o => {
+    orderSummaryMap[o.order_no] = {
+      orderNo: o.order_no,
+      orderDate: targetDate,
+      atomCode: o.atom_code,
+      storeName: o.store_name || `未知门店(${o.atom_code})`,
+      sellInAmount: 0,
+      netRevenue: 0,
+      skuCount: 0
+    };
+  });
 
-      html += `
-        <div class="item" style="padding:10px 4px;">
-          <div class="prod-name" style="color:var(--text-main); font-size:15px;">${it.product_name || '未知商品'}</div>
-          <div class="sub" style="font-size:12px; margin-top:2px;">条码: ${it.barcode}</div>
-          <div class="detail-grid-container">
-            <div class="detail-grid-item"><span>销售数量:</span><strong style="color:var(--primary);">${displayQtyStr}</strong></div>
-            <div class="detail-grid-item"><span>销售单价:</span><strong>¥${Number(it.unit_price).toFixed(2)}</strong></div>
-            <div class="detail-grid-item" style="grid-column: span 2; justify-content: flex-start; gap:10px; border-top:1px dashed #f0f0f0; padding-top:4px; margin-top:2px;">
-              <span>小计金额:</span><strong style="color:#2e7d32;">¥${Number(it.amount).toFixed(2)}</strong>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-  }
+  itemsList.forEach(it => {
+    const p = products.find(x => x.id == it.barcode);
+    if(!p) return;
+    const parsed = parseReturnHandleText(it.remark);
 
-  document.getElementById('list').innerHTML = html;
+    const qtyNum = Number(it.qty || 0);
+    const priceNum = Number(it.unit_price || 0);
+    const giftQtyNum = Number(it.gift_qty || 0);
+    const returnQtyNum = Number(parsed.qty || 0);
+
+    const row = getLiveRowAmounts(p, qtyNum, priceNum, giftQtyNum, returnQtyNum, parsed.handle);
+
+    dayTotalSale += row.saleAmount;
+    dayTotalGiftAmt += row.giftAmount;
+    if(parsed.handle === 'SCRAP') {
+      dayTotalScrapAmt += row.scrapAmount;
+      totalScrapPcs += returnQtyNum; 
+    }
+    totalGiftPcs += giftQtyNum; 
+
+    if(orderSummaryMap[it.order_no]) {
+      const targetOrder = orderSummaryMap[it.order_no];
+      targetOrder.sellInAmount += row.saleAmount;
+      targetOrder.netRevenue += (row.saleAmount - row.scrapAmount);
+      targetOrder.skuCount += 1;
+    }
+  });
+
+  let dayNetRevenue = dayTotalSale - dayTotalScrapAmt;
+  renderReportHtml(targetDate, dayTotalSale, dayNetRevenue, totalGiftPcs, totalScrapPcs, Object.values(orderSummaryMap));
 }
 
-async function templateEditOrNew(id, orderNo, remark, atomCode, storeName) {
-  autoResetSearchState();
-  STATE = "ORDER";
-  
-  if (id) {
-    document.getElementById('editStateBadge').classList.remove('hide');
+function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows) {
+  document.getElementById('list').innerHTML = `
+    <div class="big-store-title">📈 车销卖进数据日报</div>
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:10px;'>业务员：${currentEmployee.name}</div>
+    
+    <div style='margin-bottom:14px; font-size:14px;'>📅 报表日期：
+      <div class="date-picker-wrapper">
+        <button class='smallbtn' style="border-color:var(--primary); color:var(--primary); font-weight:bold;">${dateStr} 🔄</button>
+        <input type="date" class="real-date-input" value="${dateStr}" onchange="openSaleReport(this.value)">
+      </div>
+    </div>
+
+    <div class="amount-summary-banner" style="line-height:1.6; background:#fbf8fc;">
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日总实收：${netSum.toFixed(1)} 元</strong></span><br>
+      当日总销售：<strong>${saleSum.toFixed(1)} 元</strong><br>
+      <div style="display:flex; gap:20px; font-size:13px; margin-top:2px; color:var(--text-muted);">
+        <span>🎁 累计赠送：<strong style="color:#1890ff;">${totalGift}</strong> 袋</span>
+        <span>🔴 累计过期损耗：<strong style="color:red;">${totalScrap}</strong> 个</span>
+      </div>
+    </div>
+
+    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 账单解报明细</div>
+    ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下没有生成过任何客户账单</div>` : 
+      rows.map(r => `
+        <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
+             onclick="currentStore={atom:'${r.atomCode}', name:'${r.storeName}'}; viewOrderDetail('${r.orderNo}', '${r.orderDate}', true)">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:15px; color:var(--primary);">${r.storeName}</strong>
+            <span style="color:var(--text-muted); font-size:13px;">编辑细节 ✏️</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top:4px;">
+            <span>品项: ${r.skuCount} 种 | 总开单额: ${r.sellInAmount.toFixed(1)} 元</span><br>
+            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 应收金额：${r.netRevenue.toFixed(1)} 元</span>
+          </div>
+        </div>
+      `).join('')}
+  `;
+}
+
+function editExistingOrder(orderNo, orderDate, rawItemsEncoded) {
+  isNewStoreFlow = false;
+  templateEditOrNew(orderNo, orderDate, rawItemsEncoded);
+}
+
+function openOrder(atom, name){
+  isNewStoreFlow = String(atom).startsWith('NEW_');
+  templateEditOrNew(null, null, null, atom, name);
+}
+
+function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, atom=null, name=null) {
+  STATE = 'ORDER';
+  if(orderNo) {
+    const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
+    orderData = { order_no: orderNo, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
+    items.forEach(it => {
+      const parsedReturn = parseReturnHandleText(it.remark);
+      orderData.items[it.barcode] = { 
+        qty: Number(it.qty || 0), price: Number(it.unit_price || 0), gift_qty: Number(it.gift_qty || 0),
+        return_qty: Number(parsedReturn.qty || 0), return_handle: parsedReturn.handle,
+        showPanel: Number(parsedReturn.qty || 0) > 0 || Number(it.gift_qty || 0) > 0
+      };
+      
+      const pObj = products.find(x => x.id == it.barcode);
+      if(!pObj) return;
+
+      const saleBags = Number(it.qty || 0);
+      const giftBags = Number(it.gift_qty || 0);
+      const returnBags = Number(parsedReturn.qty || 0);
+      let oldNet = saleBags + giftBags;
+      if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
+      orderData.oldItemsMap[it.barcode] = oldNet; 
+    });
+    document.getElementById('editStateBadge').classList.remove('remove');
   } else {
+    const d = new Date(); 
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
     document.getElementById('editStateBadge').classList.add('hide');
   }
-  
-  document.getElementById('back').classList.remove('hide');
-  document.getElementById('searchBlock').classList.add('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">数据结构初始化中...</div>';
 
-  orderData = {
-    id: id || null,
-    order_no: orderNo || null,
-    remark: remark || '',
-    atom: atomCode,
-    name: storeName,
-    items: {} 
-  };
-
-  products.forEach(p => {
-    orderData.items[p.barcode] = {
-      qty: 0,
-      livePrice: isSpecialSpecOreo(p) ? 17.5 : (p.default_price || 15)
-    };
-  });
-
-  if (id) {
-    const { data: existingItems } = await client.from('sales_order_items').select('*').eq('order_no', orderNo);
-    (existingItems || []).forEach(it => {
-      if (orderData.items[it.barcode]) {
-        orderData.items[it.barcode].qty = Number(it.qty) || 0;
-        orderData.items[it.barcode].livePrice = Number(it.unit_price) || 0;
-      }
-    });
-  }
-
-  if (!currentSelectedBrand) {
-    const brands = [...new Set(products.map(p => p.brand))];
+  if (products.length > 0) {
+    const brands = [...new Set(products.map(p => p.brand))].filter(Boolean);
     currentSelectedBrand = brands.length > 0 ? brands[0] : null;
-    currentSelectedSpec = "ALL";
-  }
-
-  renderOrderPage();
-}
-
-function renderOrderPage(){
-  let html = `
-    <div class="big-store-title" style="margin-bottom:2px;">🛒 手机开单收银</div>
-    <div class="sub" style="margin-bottom:4px;">当前门店：<strong>${orderData.name}</strong></div>
-    <div class="sub" style="margin-bottom:14px;">经办员工：<strong>${currentEmployee.name}</strong> (${currentEmployee.code})</div>
-  `;
-
-  html += generateFilterHeaderHtml();
-
-  let totalLiveOrderAmount = 0;
-  products.forEach(p => {
-    const rowInput = orderData.items[p.barcode];
-    if(rowInput && rowInput.qty > 0) {
-      const rowAmounts = getLiveRowAmounts(p, rowInput.qty, rowInput.livePrice, 0, 0, 'RESTORE');
-      totalLiveOrderAmount += rowAmounts.saleAmount;
-    }
-  });
-
-  html += `
-    <div class="amount-summary-banner">
-      🛒 当前账单实时合计实付额：<strong style="color:#2e7d32; font-size:17px;">¥${totalLiveOrderAmount.toFixed(2)}</strong>
-    </div>
-    <div style="margin: 12px 2px 6px 2px;">
-      <label style="font-size:13px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">📝 账单备注信息 (可选):</label>
-      <input id="orderRemarkInput" type="text" placeholder="如：送货备注、整单折扣说明..." value="${orderData.remark || ''}" oninput="orderData.remark = this.value" style="width:100%; padding:10px; border:1px solid #dcd6dd; border-radius:6px; box-sizing:border-box; font-size:14px;" />
-    </div>
-  `;
-
-  const filteredProducts = products.filter(p => {
-    if (p.brand !== currentSelectedBrand) return false;
-    if (currentSelectedSpec !== "ALL" && p.spec !== currentSelectedSpec) return false;
-    return true;
-  });
-
-  if (filteredProducts.length === 0) {
-    html += `<div class="sub" style="text-align:center;padding:30px;">暂无该品类商品</div>`;
-  } else {
-    filteredProducts.forEach(p => {
-      const rowInput = orderData.items[p.barcode];
-      const isOreo = isSpecialSpecOreo(p);
-      const specCase = parseInt(p.pcs_per_case) || 1;
-      const specBox = p.pcs_per_box || 0;
-
-      let currentCases = Math.floor(rowInput.qty / specCase);
-      let remPcs = rowInput.qty % specCase;
-      let currentBoxes = specBox > 0 ? Math.floor(remPcs / specBox) : 0;
-      let currentPcs = specBox > 0 ? remPcs % specBox : remPcs;
-
-      const decPlaces = getPriceDecimalPlaces(p.id);
-      const stepVal = decPlaces === 2 ? 0.01 : 0.1;
-
-      html += `
-        <div class="item">
-          <div class="brand"><span style="background:var(--primary); width:4px; height:14px; display:inline-block; border-radius:2px;"></span>${p.name}</div>
-          <div class="sub" style="margin-bottom:8px; font-size:12px;">条码: ${p.barcode} | 规格: ${p.spec}</div>
-          
-          <div style="display:flex; flex-direction:column; gap:8px; background:#faf9fa; padding:10px; border-radius:8px; border:1px solid #eeeade;">
-            
-            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; flex-wrap:wrap; gap:6px;">
-              <span style="font-size:13px; font-weight:700; color:var(--primary);">🛍️ 销售数量:</span>
-              <div class="control-group">
-                <div class="picker-wrapper">
-                  <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'CASE', this.value)">
-                    ${Array.from({length: 101}, (_, i) => `<option value="${i}" ${currentCases===i?'selected':''}>${i}</option>`).join('')}
-                  </select>
-                  <span class="unit-txt">件</span>
-                </div>
-                
-                ${ specBox > 0 ? `
-                  <div class="picker-wrapper">
-                    <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'BOX', this.value)">
-                      ${Array.from({length: parseInt(specCase/specBox)+1}, (_, i) => `<option value="${i}" ${currentBoxes===i?'selected':''}>${i}</option>`).join('')}
-                    </select>
-                    <span class="unit-txt">盒</span>
-                  </div>
-                ` : '' }
-
-                <div class="picker-wrapper">
-                  <select class="ios-picker" onchange="updateRowQty('${p.barcode}', 'PCS', this.value)">
-                    ${Array.from({length: (specBox > 0 ? specBox : specCase) + 1}, (_, i) => `<option value="${i}" ${currentPcs===i?'selected':''}>${i}</option>`).join('')}
-                  </select>
-                  <span class="unit-txt">个</span>
-                </div>
-              </div>
-            </div>
-
-            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; border-top:1px dashed #e2dde3; padding-top:8px;">
-              <span style="font-size:13px; font-weight:700; color:#c62828;">🏷️ 实际售价:</span>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <span style="font-size:12px; color:var(--text-muted);">¥</span>
-                <input type="number" step="${stepVal}" value="${rowInput.livePrice}" onchange="updateRowPrice('${p.barcode}', this.value)" style="width:70px; padding:5px; text-align:center; font-weight:bold; font-size:14px; border:1px solid #cbd5e1; border-radius:6px; color:#c62828; background:#fff;" />
-                <span style="font-size:12px; color:var(--text-muted);">${isOreo ? '元/件' : '元/件'}</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  html += `<button id="submitOrderBtn" class="float-submit" onclick="submitOrderFinalSales()">🚀 提交账单</button>`;
-  document.getElementById('list').innerHTML = html;
-}
-
-function updateRowQty(barcode, unitType, val) {
-  const p = products.find(x => x.barcode === barcode);
-  if(!p) return;
-  const rowInput = orderData.items[barcode];
-  const specCase = parseInt(p.pcs_per_case) || 1;
-  const specBox = p.pcs_per_box || 0;
-
-  let currentCases = Math.floor(rowInput.qty / specCase);
-  let remPcs = rowInput.qty % specCase;
-  let currentBoxes = specBox > 0 ? Math.floor(remPcs / specBox) : 0;
-  let currentPcs = specBox > 0 ? remPcs % specBox : remPcs;
-
-  const intV = parseInt(val) || 0;
-  if(unitType === 'CASE') currentCases = intV;
-  else if(unitType === 'BOX') currentBoxes = intV;
-  else if(unitType === 'PCS') currentPcs = intV;
-
-  rowInput.qty = currentCases * specCase + currentBoxes * specBox + currentPcs;
-  
-  const bannerEl = document.querySelector('.amount-summary-banner strong');
-  if(bannerEl) {
-    let totalLiveOrderAmount = 0;
-    products.forEach(prod => {
-      const rIn = orderData.items[prod.barcode];
-      if(rIn && rIn.qty > 0) {
-        const rowAm = getLiveRowAmounts(prod, rIn.qty, rIn.livePrice, 0, 0, 'RESTORE');
-        totalLiveOrderAmount += rowAm.saleAmount;
-      }
-    });
-    bannerEl.innerText = `¥${totalLiveOrderAmount.toFixed(2)}`;
-  }
-}
-
-function updateRowPrice(barcode, val) {
-  const rowInput = orderData.items[barcode];
-  if(rowInput) {
-    rowInput.livePrice = parseFloat(val) || 0;
     
-    const bannerEl = document.querySelector('.amount-summary-banner strong');
-    if(bannerEl) {
-      let totalLiveOrderAmount = 0;
-      products.forEach(prod => {
-        const rIn = orderData.items[prod.barcode];
-        if(rIn && rIn.qty > 0) {
-          const rowAm = getLiveRowAmounts(prod, rIn.qty, rIn.livePrice, 0, 0, 'RESTORE');
-          totalLiveOrderAmount += rowAm.saleAmount;
-        }
-      });
-      bannerEl.innerText = `¥${totalLiveOrderAmount.toFixed(2)}`;
+    const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))].filter(Boolean);
+    currentSelectedSpec = availableSpecs.length > 0 ? availableSpecs[0] : "";
+  }
+  renderOrder();
+}
+
+function calculateLiveOrderAmounts() {
+  let s = 0; let g = 0; let res = 0; let scr = 0;
+  let activeSKUCount = 0;
+  products.forEach(p => {
+    const item = orderData.items[p.id];
+    if(item) {
+      if(Number(item.qty || 0) > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
+        activeSKUCount++;
+      }
+      const rowRes = getLiveRowAmounts(p, Number(item.qty || 0), Number(item.price || 0), Number(item.gift_qty || 0), Number(item.return_qty || 0), item.return_handle);
+      s += rowRes.saleAmount; 
+      g += rowRes.giftAmount; 
+      res += rowRes.restoreAmount; 
+      scr += rowRes.scrapAmount;      
     }
+  });
+
+  let liveNetRevenue = s - scr;
+
+  document.getElementById('liveAmountBanner').innerHTML = `
+    <span style="font-size:15px; color:var(--primary);">💵 <strong>实时预估实收：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
+    选购品项：${activeSKUCount} 款 | 销售：${s.toFixed(1)} 元 | 过期损耗扣除：${scr.toFixed(1)} 元
+  `;
+}
+
+function renderOrder(){
+  STATE = 'ORDER';
+  const displayProducts = products.filter(p => p.brand === currentSelectedBrand && p.spec === currentSelectedSpec);
+  const isTemp = String(orderData.atom).startsWith('NEW_');
+
+  document.getElementById('list').innerHTML = `
+    <div class="big-store-title">${orderData.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">新门店开单</span>' : ''}</div>
+    <div style='margin-bottom:8px;'>📅 日期选择：<span id='dateText'>${orderData.date}</span>
+      <div class="date-picker-wrapper"><button class='smallbtn'>修改日期</button><input type="date" class="real-date-input" value="${orderData.date}" onchange="syncSelectedDate(this.value)"></div>
+    </div>
+    <div id="liveAmountBanner" class="amount-summary-banner"></div>
+    ${generateFilterHeaderHtml()}
+    ${displayProducts.map(p => {
+      const defaultPriceVal = p.default_price || 15;
+      const specBox = p.pcs_per_box || 0; 
+      
+      const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+      
+      return `
+        <div class='item'>
+          <div class="item-main-row">
+            <div class='prod-info'>
+              <div class='prod-name'>${p.product_name}</div>
+              <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" onclick="toggleAfterSalePanel('${p.id}')">🔄 搭赠 / 售后退货</button>
+            </div>
+            
+            <div class='control-group'>
+              <div class="picker-wrapper">
+                <span class="label-txt">销售:</span>
+                <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
+                  ${makePureQtyOptionsHtml(100, itData.qty)}
+                </select>
+                <span class="unit-txt">件</span>
+              </div>
+              <div class="picker-wrapper">
+                <span class="label-txt">单价:</span>
+                <select class="ios-picker" onchange="pickerChangePrice('${p.id}', this.value)">
+                  ${makePurePriceOptionsHtml(defaultPriceVal, 1, itData.price)}
+                </select>
+                <span class="unit-txt">元</span>
+              </div>
+            </div>
+          </div>
+          
+          <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
+            <div class="aftersale-row-picks">
+              <div class="picker-wrapper" style="flex:1;">
+                <span class="label-txt">退回数量:</span>
+                <select class="ios-picker" onchange="pickerChangeReturnQty('${p.id}', this.value)">
+                  ${makePureQtyOptionsHtml(100, itData.return_qty)}
+                </select>
+                <span class="unit-txt">个</span>
+              </div>
+
+              <div class="picker-wrapper" style="flex:1;">
+                <span class="label-txt">免费赠送:</span>
+                <select class="ios-picker" onchange="pickerChangeGiftQty('${p.id}', this.value)">
+                  ${makePureQtyOptionsHtml(50, itData.gift_qty)}
+                </select>
+                <span class="unit-txt">袋</span>
+              </div>
+            </div>
+
+            <div class="aftersale-options">
+              <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle!=='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','RESTORE')">🟢 能卖 (良退)</label>
+              <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle==='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','SCRAP')">🔴 过期 (损耗)</label>
+            </div>
+          </div>
+        </div>`;
+    }).join('')}
+    <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
+  `;
+  calculateLiveOrderAmounts();
+}
+
+function initItemState(id) {
+  if(!orderData.items[id]){ 
+    const p = products.find(x => x.id == id); 
+    const defaultPriceVal = p.default_price || 15;
+    orderData.items[id] = { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
   }
 }
 
-async function submitOrderFinalSales(){
-  const submitBtn = document.getElementById('submitOrderBtn');
-  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '正在提交...'; }
+function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+
+function pickerChangePrice(id, value) { 
+  initItemState(id); 
+  const targetPrice = parseFloat(value) || 0;
+  const currentProd = products.find(x => x.id == id);
+  if (!currentProd) return;
+
+  const sameSpecProducts = products.filter(p => p.brand === currentProd.brand && p.spec === currentProd.spec);
+  sameSpecProducts.forEach(p => {
+    initItemState(p.id);
+    orderData.items[p.id].price = targetPrice;
+  });
+
+  renderOrder();
+}
+
+function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+function toggleAfterSalePanel(id) { initItemState(id); orderData.items[id].showPanel = !orderData.items[id].showPanel; renderOrder(); }
+function sendBillStatus(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
+function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
+function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
+
+// 【新表适配】提交订单：对接 sales_orders 和 sales_order_items，同步更新 van_stocks
+async function submitOrder(){
+  let grandTotalQty = 0;
+  Object.keys(orderData.items).forEach(id => {
+    const it = orderData.items[id];
+    grandTotalQty += Number(it.qty || 0) + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
+  });
+
+  if (grandTotalQty === 0) {
+    alert("⚠️ 空白单据无法提交！");
+    return;
+  }
+
+  const submitBtn = document.querySelector('.float-submit');
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在提交到云端...'; }
 
   try {
-    let finalTotalAmount = 0;
-    const itemsToInsert = [];
+    let finalOrderNo = orderData.order_no;
 
-    let hasValidItems = false;
-    for (const barcode in orderData.items) {
-      const rowInput = orderData.items[barcode];
-      if(rowInput.qty > 0) {
-        hasValidItems = true;
-      }
-    }
-
-    if(!hasValidItems) {
-      alert("💡 账单中没有任何有效的商品订购数量！");
-      if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
-      return;
-    }
-
-    const generatedOrderNo = orderData.order_no || 'SO-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-
-    for (const barcode in orderData.items) {
-      const rowInput = orderData.items[barcode];
-      if(rowInput.qty <= 0) continue;
-
-      const p = products.find(x => x.barcode === barcode);
-      if(!p) continue;
-
-      const rowAm = getLiveRowAmounts(p, rowInput.qty, rowInput.livePrice, 0, 0, 'RESTORE');
-      finalTotalAmount += rowAm.saleAmount;
-
-      itemsToInsert.push({
-        order_no: generatedOrderNo,
-        barcode: barcode,
-        product_name: p.name,
-        qty: rowInput.qty,
-        unit_price: rowInput.livePrice,
-        amount: rowAm.saleAmount
-      });
-    }
-
-    // 【更新点】针对 sales_orders 写入，全字段匹配最新结构
-    const orderMasterRow = {
-      order_no: generatedOrderNo,
-      employee_code: currentEmployee.code,
-      atom_code: orderData.atom,
-      store_name: orderData.name,
-      total_amount: finalTotalAmount,
-      status: 'completed',
-      remark: orderData.remark || null
-    };
-
-    if(orderData.id) {
-      orderMasterRow.id = orderData.id;
-    }
-
-    const { data: savedOrder, error: orderErr } = await client
-      .from('sales_orders')
-      .upsert(orderMasterRow, { onConflict: 'id' })
-      .select();
-
-    if(orderErr) throw orderErr;
-
-    if(orderData.id) {
-      const { error: delErr } = await client.from('sales_order_items').delete().eq('order_no', generatedOrderNo);
-      if(delErr) throw delErr;
-    }
-
-    const { error: itemsErr } = await client.from('sales_order_items').insert(itemsToInsert);
-    if(itemsErr) throw itemsErr;
-
-    // 【更新点】如果是新门店自主创建流程，联动在 employee_store_assets 表中注册此临时门店
-    if (String(orderData.atom).startsWith('NEW_') && isNewStoreFlow) {
-      const newStoreAssetRow = {
+    // 自主创建新门店绑定新表 employee_store_assets
+    if (isNewStoreFlow && !finalOrderNo) {
+      await client.from('employee_store_assets').insert({
         employee_code: currentEmployee.code,
         atom_code: orderData.atom,
         store_name: orderData.name
-      };
-      await client.from('employee_store_assets').insert(newStoreAssetRow);
+      });
+
+      stores.push({ atom_code: orderData.atom, store_name: orderData.name });
+      stores.sort((a, b) => a.store_name.localeCompare(b.store_name, 'zh-CN'));
+      isNewStoreFlow = false; 
     }
 
-    alert("✨ 恭喜，账单提交成功！");
-    
-    const isTemp = String(orderData.atom).startsWith('NEW_');
-    const savedAtom = orderData.atom;
-    const savedName = orderData.name;
-    
-    orderData = null;
-    isNewStoreFlow = false;
+    const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
+    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
 
-    if(isTemp) {
-      const r = await client.from('employee_store_assets').select('atom_code, store_name').eq('employee_code', currentEmployee.code);
-      stores = (r.data || []).map(item => ({
-        atom_code: String(item.atom_code).trim(),
-        store_name: (item.store_name || '').trim()
-      })).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
+    const stockUpdates = []; let isStockDeficit = false; 
+    const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
+
+    for (let id of allProdIds) {
+      const item = orderData.items[id] || { qty: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
+      const oldNetImpact = Number(orderData.oldItemsMap?.[id] || 0); 
       
-      openNewStoreManagement();
-    } else {
-      openStoreHistory(savedAtom, savedName);
+      const saleBags = Number(item.qty || 0);
+      const giftBags = Number(item.gift_qty || 0);
+      const returnBags = Number(item.return_qty || 0);
+
+      let currentNetImpact = saleBags + giftBags; 
+      if (item.return_handle === 'RESTORE') currentNetImpact -= returnBags; 
+
+      const delta = currentNetImpact - oldNetImpact; 
+      const finalNewStock = Number(liveStockMap[id] || 0) - delta;
+
+      if (finalNewStock < 0) isStockDeficit = true;
+      if (delta !== 0 || Number(item.qty || 0) > 0 || Number(item.return_qty || 0) > 0 || Number(item.gift_qty || 0) > 0) {
+        stockUpdates.push({ employee_code: currentEmployee.code, product_barcode: id, qty: finalNewStock });
+      }
     }
+
+    let totalBillAmount = 0;
+    const formattedItems = [];
+    
+    Object.keys(orderData.items).forEach(id => { 
+      const it = orderData.items[id]; 
+      const p = products.find(x => x.id == id);
+      if(!p) return;
+
+      if(Number(it.qty || 0) > 0 || Number(it.return_qty || 0) > 0 || Number(it.gift_qty || 0) > 0){ 
+        const remarkString = `${it.return_qty || 0}_${it.return_handle}`;
+        const rowRes = getLiveRowAmounts(p, Number(it.qty || 0), Number(it.price || 0), Number(it.gift_qty || 0), Number(it.return_qty || 0), it.return_handle);
+        
+        const itemAmount = rowRes.saleAmount - rowRes.scrapAmount;
+        totalBillAmount += itemAmount;
+
+        formattedItems.push({ 
+          barcode: id, 
+          product_name: p.product_name,
+          qty: Number(it.qty || 0), 
+          unit_price: Number(it.price || 0), 
+          gift_qty: Number(it.gift_qty || 0), 
+          amount: itemAmount,
+          remark: remarkString 
+        }); 
+      } 
+    });
+
+    if (finalOrderNo) {
+      // 修改现有单据
+      await client.from('sales_orders').update({ total_amount: totalBillAmount }).eq('order_no', finalOrderNo);
+      await client.from('sales_order_items').delete().eq('order_no', finalOrderNo);
+      formattedItems.forEach(fit => fit.order_no = finalOrderNo);
+      await client.from('sales_order_items').insert(formattedItems); 
+    } else {
+      // 组装随机新单号
+      finalOrderNo = 'SO' + Date.now() + Math.floor(Math.random() * 1000);
+      await client.from('sales_orders').insert({ 
+        order_no: finalOrderNo,
+        employee_code: currentEmployee.code, 
+        atom_code: orderData.atom, 
+        store_name: orderData.name,
+        total_amount: totalBillAmount,
+        status: 'SUCCESS'
+      });
+      formattedItems.forEach(fit => fit.order_no = finalOrderNo);
+      await client.from('sales_order_items').insert(formattedItems); 
+    }
+
+    if (stockUpdates.length > 0) await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
+    if (isStockDeficit) alert('⚠️ 账单保存成功！但该业务员车上部分口味存货出现负值，请注意及时补货。');
+    
+    orderData = null; 
+    document.getElementById('editStateBadge').classList.add('hide');
+    openStoreHistory(currentStore.atom, currentStore.name);
 
   } catch (err) {
     console.error(err);
@@ -1078,10 +1135,12 @@ function goBack(){
     }
   }
   else if(STATE === 'ORDER') {
-    if(orderData?.id) {
-      const savedId = orderData.id;
+    if(orderData?.order_no) {
+      const savedNo = orderData.order_no;
+      const savedDate = orderData.date;
+      const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
       orderData = null; 
-      renderHistory();
+      viewOrderDetail(savedNo, savedDate, isFromReport);
     } else {
       const isTemp = String(orderData?.atom).startsWith('NEW_');
       orderData = null;
@@ -1093,92 +1152,20 @@ function goBack(){
     }
   }
   else if(STATE === 'HISTORY') {
-    renderStores();
+    const isTemp = String(currentStore?.atom).startsWith('NEW_');
+    orderData = null;
+    if (isTemp) {
+      openNewStoreManagement();
+    } else {
+      renderStores(); 
+    }
   }
   else if(STATE === 'STORE') {
-    currentEmployee = null;
+    orderData = null;
     renderEmployees();
   }
 }
 
-async function openSaleReport(targetDateStr="") {
-  STATE = "REPORT";
-  orderData = null;
-  document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
-  document.getElementById('alphabetSidebar').classList.add('hide');
-  document.getElementById('searchBlock').classList.add('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在统计卖进报表数据...</div>';
-
-  if(!targetDateStr) {
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(today - offset)).toISOString().slice(0,10);
-    targetDateStr = localISOTime;
-  }
-  selectedReportDate = targetDateStr;
-
-  const startUtc = targetDateStr + "T00:00:00.000Z";
-  const endUtc = targetDateStr + "T23:59:59.999Z";
-
-  const { data: dayOrders } = await client.from('sales_orders')
-    .select('*')
-    .eq('employee_code', currentEmployee.code)
-    .gte('created_at', startUtc)
-    .lte('created_at', endUtc)
-    .order('created_at', { ascending: false });
-
-  historyOrders = dayOrders || [];
-
-  let dayTotalSum = 0;
-  historyOrders.forEach(o => dayTotalSum += (Number(o.total_amount) || 0));
-
-  let html = `
-    <div class="big-store-title" style="margin-bottom:2px;">📊 车销卖进日报</div>
-    <div class="sub" style="margin-bottom:12px;">员工：<strong>${currentEmployee.name}</strong></div>
-    
-    <div style="background:#fff; border:1px solid #dcd6dd; border-radius:8px; padding:12px; margin-bottom:14px;">
-      <div style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">切换报表查看日期:</div>
-      <div class="date-picker-wrapper" style="width:100%;">
-        <button class="smallbtn" style="width:100%; padding:10px; font-weight:bold; font-size:15px; color:var(--primary); background:#faf9fa; text-align:center;">📅 ${targetDateStr} (点击更改)</button>
-        <input type="date" class="real-date-input" value="${targetDateStr}" onchange="openSaleReport(this.value)" />
-      </div>
-    </div>
-
-    <div class="amount-summary-banner" style="background:#e8f5e9; border-left-color:#2e7d32; color:#1b5e20;">
-      📈 该日卖进订单总数：<strong>${historyOrders.length} 单</strong><br/>
-      💰 该日累计收款总额：<strong style="font-size:18px;">¥${dayTotalSum.toFixed(2)}</strong>
-    </div>
-
-    <div style='font-size:15px; font-weight:700; color:var(--primary); margin: 16px 0 8px 4px;'>本日已生成单据列表</div>
-  `;
-
-  if(historyOrders.length === 0) {
-    html += `<div class="sub" style="text-align:center; padding:40px; color:#aaa; background:#faf9fa; border-radius:8px; border:1px dashed #e2dde3;">该日期下暂无任何账单</div>`;
-  } else {
-    historyOrders.forEach(o => {
-      const timeStr = new Date(o.created_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Shanghai'});
-      html += `
-        <div class="history-item" style="background:#fff;">
-          <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-            <strong style="font-size:15px; color:var(--primary);">${o.store_name}</strong>
-            <span style="font-size:12px; color:#756676;">⏰ ${timeStr}</span>
-          </div>
-          <div style="font-size:13px; color:var(--text-muted); margin: 2px 0;">单号: ${o.order_no}</div>
-          <div style="font-size:14px; font-weight:700; color:#2e7d32;">实付金额: ¥${Number(o.total_amount).toFixed(2)}</div>
-          <div style="margin-top: 6px; display:flex; gap:8px; width:100%; justify-content:flex-end;">
-            <button class="smallbtn" onclick="viewOrderDetail('${o.id}', '${o.created_at}', true)">查看明细</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  document.getElementById('list').innerHTML = html;
-}
-
-// 启动页面初始化
 init();
 </script>
-</body>
-</html>
+</body></html>
