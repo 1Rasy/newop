@@ -63,26 +63,42 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ===================================================
-  // 🔗 请在下方双引号中填入你项目真实的 Supabase 密钥
-  // ===================================================
   const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co"; 
   const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG"; 
 
   window.mySupabaseInstance = (SUPABASE_URL && SUPABASE_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
+  // ====================================================================
+  // ⚡ 核心修复：针对你发出的精确表头，进行严格对齐与清洗。
+  // ====================================================================
   const SAFE_FIELD_TRANSLATOR = {
-    "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
-    "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
-    "条形码": "barcode", "商品名称": "product_name", "包装": "package_reg",
-    "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
-    "2": "unit", "3": "unit_price", "折扣": "discount", "应收款": "total_amount"
+    "单号": "order_no",
+    "单据编号": "doc_no",
+    "制单日期": "bill_date",
+    "客户编号": "customer_code",
+    "客户": "customer_name",
+    "商品编号": "sku_code",
+    "条形码": "barcode",
+    "商品名称": "product_name",
+    "包装": "package_reg",
+    "件": "qty_piece",
+    "1": "amount_piece",     // 件的总价
+    "散": "qty_scatter",     // 散货数量
+    "2": "unit",             // 二级规格名称（如：盒、包）
+    "3": "amount_scatter",  // 散件的总价
+    "折扣": "discount",       // 模糊匹配包含“折扣”即可
+    "应收款": "total_amount"
   };
 
   const NUMERIC_FIELDS = [
     "package_reg", "qty_piece", "amount_piece", "qty_scatter", 
-    "unit_price", "discount", "total_amount"
+    "amount_scatter", "discount", "total_amount"
   ];
+
+  // ====================================================================
+  // 🎯 特殊商品配置：请在此处填入那个直接记录第三级散数的特殊商品的条形码
+  // ====================================================================
+  const SPECIAL_PRODUCT_BARCODE = "请在此处填入该特殊商品的真实条形码"; 
 
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('excelFile');
@@ -145,7 +161,6 @@
         const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         
-        // 核心修复：添加 raw: false 和 dateNF，解决 bill_date 显示为纯数字序列号的问题
         const rawRows = XLSX.utils.sheet_to_json(worksheet, {
           raw: false,
           dateNF: 'yyyy-mm-dd hh:mm:ss'
@@ -153,19 +168,30 @@
         
         if (rawRows.length === 0) throw new Error("Excel 未包含有效数据行。");
 
-        statusMsg.innerText = "正在执行数据标准化清洗...";
+        statusMsg.innerText = "正在执行高级数据标准化清洗...";
 
         const batchId = "BATCH_" + Date.now();
-        const safePayloads = rawRows.map(row => {
+        
+        // 提取系统现有的商品表，用以在后端辅助识别特殊商品
+        const { data: dbProducts } = await window.mySupabaseInstance.from('products').select('*');
+        const productsList = dbProducts || [];
+
+        const safePayloads = rawRows.map((row, index) => {
           let newRow = { import_batch_id: batchId, is_processed: false };
           
-          for (let chineseKey in row) {
-            let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
-            const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
+          // 深度清洗并匹配表头
+          for (let originalKey in row) {
+            // 去除首尾空格、中间空格、换行、制表符
+            let cleanKey = originalKey.replace(/[\s\r\n\t]/g, "");
             
+            // 针对带有括号的特殊列（如 折扣(%)）进行平滑模糊匹配
+            if (cleanKey.includes("折扣")) {
+              cleanKey = "折扣";
+            }
+
+            const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
             if (englishKey) {
-              let val = row[chineseKey];
-              
+              let val = row[originalKey];
               if (NUMERIC_FIELDS.includes(englishKey)) {
                 if (val === "" || val === undefined || val === null || String(val).trim() === "") {
                   newRow[englishKey] = 0;
@@ -173,60 +199,70 @@
                   newRow[englishKey] = Number(val);
                 }
               } else {
-                newRow[englishKey] = val;
+                newRow[englishKey] = (val !== undefined && val !== null) ? String(val).trim() : val;
               }
             }
           }
           
+          // 强制查缺补漏，确保数值字段不为 undefined
           NUMERIC_FIELDS.forEach(numKey => {
-            if (newRow[numKey] === undefined) {
-              newRow[numKey] = 0;
-            }
+            if (newRow[numKey] === undefined) newRow[numKey] = 0;
           });
+
+          // ====================================================================
+          // 🛑 核心业务特例拦截：针对特殊三级规格商品的清洗逻辑
+          // ====================================================================
+          if (newRow.barcode === SPECIAL_PRODUCT_BARCODE && SPECIAL_PRODUCT_BARCODE !== "") {
+            // 该特殊商品在经销商 Excel 里的“散”直接就是最底层的数量，不需要进行任何“中盒转换”
+            // 我们在入库前打上特殊标记，或者保持它的原始数值，后续分发逻辑看到此条码将直接划归入最小散数
+            newRow.is_triple_spec_direct = true; 
+          } else {
+            newRow.is_triple_spec_direct = false;
+          }
 
           return newRow;
         });
 
-        statusMsg.innerText = "正在写入数据库并验证单号...";
+        // 彻底剔除单号为空的坏行，防止单号 null 锁死唯一索引
+        const finalPayloads = safePayloads.filter(r => r.order_no && r.order_no !== "undefined" && r.order_no !== "null");
+        
+        if (finalPayloads.length === 0) {
+          throw new Error("清洗后未发现有效单号，请检查 Excel 里的【单号】列字样是否完全吻合。");
+        }
 
-        // 核心去重：使用 upsert 代替 insert，并通过 onConflict 约束 order_no 
-        // 确保当数据库中存在相同 order_no 时执行更新（覆盖），不产生重复数据行
-        const { data: insertResult, error, count } = await window.mySupabaseInstance
+        statusMsg.innerText = `正在写入数据库... (有效行数: ${finalPayloads.length} 条)`;
+
+        const { data: insertResult, error } = await window.mySupabaseInstance
           .from('raw_dealer_outbounds')
-          .upsert(safePayloads, { 
+          .upsert(finalPayloads, { 
             onConflict: 'order_no',
-            count: 'exact' // 准确获取受影响的行数
-          })
-          .select('order_no'); // 返回插入/更新的单号集用于细化统计数据
+            count: 'exact'
+          });
 
         if (error) throw error;
 
-        // 根据返回结果，结合查询数据库来精确统计“新导入”与“重复过滤”的条数
-        const incomingOrderNos = safePayloads.map(r => r.order_no).filter(Boolean);
-        
-        // 再次查询该批单号中，有多少条记录的 batch_id 依旧等于当前新批次 ID。
-        // 如果等于新 ID，说明是全新插入的；如果不等于，说明被重写覆盖或保持原样（即重复项）
+        // 精准计算成功率
+        const incomingOrderNos = finalPayloads.map(r => r.order_no);
         const { data: currentBatchRows, error: fetchError } = await window.mySupabaseInstance
           .from('raw_dealer_outbounds')
           .select('order_no')
           .in('order_no', incomingOrderNos)
           .eq('import_batch_id', batchId);
 
-        let newInsertedCount = safePayloads.length;
+        let newInsertedCount = finalPayloads.length;
         let filteredCount = 0;
 
         if (!fetchError && currentBatchRows) {
           newInsertedCount = currentBatchRows.length;
-          filteredCount = safePayloads.length - newInsertedCount;
+          filteredCount = finalPayloads.length - newInsertedCount;
         }
 
         statusMsg.innerText = "数据导入完成。";
         
-        // 根据业务需求定制提示信息：有重复则提示过滤，无重复则只提示导入数量
         if (filteredCount > 0) {
-          alert(`数据导入成功。\n本次共处理 ${safePayloads.length} 条记录：\n- 成功导入新数据: ${newInsertedCount} 条\n- 检测并自动过滤重复单号: ${filteredCount} 条`);
+          alert(`数据导入成功。\n本次共处理 Excel 数据 ${finalPayloads.length} 条：\n- 成功导入新出库单: ${newInsertedCount} 条\n- 检测并自动过滤重复单号: ${filteredCount} 条`);
         } else {
-          alert(`数据导入成功，共顺利导入 ${newInsertedCount} 条记录。`);
+          alert(`数据导入成功，共顺利导入 ${newInsertedCount} 条新数据。`);
         }
         
         fileInfo.style.display = 'none';
@@ -235,7 +271,7 @@
       } catch (err) {
         console.error(err);
         statusMsg.innerText = "导入失败";
-        alert(`导入终止，原因: ${err.message || '请检查网络连接或 Supabase 配置。'}`);
+        alert(`导入终止，原因: ${err.message || '未知错误，请检查表头或字段。'}`);
         submitBtn.disabled = false;
       }
     };
