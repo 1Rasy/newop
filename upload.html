@@ -127,15 +127,15 @@
   ];
 
   // ====================================================================
-  // 🎯 特殊规格拦截配置 (跳过中盒直记最小散数商品白名单)
+  // 🎯 特殊规格拦截配置（跳过中盒直记最小散数商品白名单）
   // ====================================================================
   const SPECIAL_PRODUCTS_MAP = {
-    "6924513908032": true, 
+    "6924513908032": true,
     "6924513908001": true,
-    "6924513909244": true, 
-    "6924513909268": true, 
+    "6924513909244": true,
+    "6924513909268": true,
     "6924513902283": true,
-    "6924513908063": true  
+    "6924513908063": true
   };
 
   const dropZone = document.getElementById('dropZone');
@@ -196,9 +196,10 @@
         
         if (rawRows.length === 0) throw new Error("Excel 未包含有效数据行。");
 
-        statusMsg.innerText = "正在清洗并标准化数据字段...";
+        statusMsg.innerText = "正在清洗并清洗过滤重复行...";
 
         const batchId = "BATCH_" + Date.now();
+        const seenKeys = new Set();
         const safePayloads = [];
 
         rawRows.forEach(row => {
@@ -207,13 +208,9 @@
 
           for (let chineseKey in row) {
             let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
-            
-            if (cleanKey.includes("折扣")) {
-              cleanKey = "折扣";
-            }
+            if (cleanKey.includes("折扣")) cleanKey = "折扣";
 
             const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
-            
             if (englishKey) {
               hasValidData = true;
               let val = row[chineseKey];
@@ -234,7 +231,6 @@
             if (newRow[numKey] === undefined) newRow[numKey] = 0;
           });
 
-          // 核心特殊规格商品防御拦截
           if (newRow.barcode && SPECIAL_PRODUCTS_MAP[newRow.barcode]) {
             newRow.is_triple_spec_direct = true; 
           } else {
@@ -242,6 +238,13 @@
           }
 
           if (hasValidData && newRow.order_no && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
+            const uniqueKey = `${newRow.order_no}_${newRow.barcode}`;
+            
+            // 🛠️ 查重拦截：同一张单据中如存在完全重复的商品行，只保留首条，后续重复行直接丢弃
+            if (seenKeys.has(uniqueKey)) {
+              return; 
+            }
+            seenKeys.add(uniqueKey);
             safePayloads.push(newRow);
           }
         });
@@ -252,7 +255,6 @@
 
         statusMsg.innerText = `正在写入数据库 (${safePayloads.length}条)...`;
 
-        // 🛠️ 配合数据库联合约束：使用 order_no 和 barcode 实现一单多货精准覆盖去重
         const { error } = await window.mySupabaseInstance
           .from('raw_dealer_outbounds')
           .upsert(safePayloads, { onConflict: 'order_no,barcode' });
@@ -260,7 +262,7 @@
         if (error) throw error;
 
         statusMsg.innerText = "数据导入完成。";
-        alert(`导入成功，共处理 ${safePayloads.length} 条数据记录。`);
+        alert(`导入成功，共处理 ${safePayloads.length} 条有效记录。`);
         
         fileInfo.style.display = 'none';
         selectedFile = null;
