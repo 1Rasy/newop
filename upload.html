@@ -126,9 +126,6 @@
     "unit_price", "discount", "total_amount"
   ];
 
-  // ====================================================================
-  // 🎯 特殊规格拦截配置（跳过中盒直记最小散数商品白名单）
-  // ====================================================================
   const SPECIAL_PRODUCTS_MAP = {
     "6924513908032": true,
     "6924513908001": true,
@@ -191,12 +188,22 @@
     reader.onload = async function(e) {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        
+        // 🛠️ 关键修改 1：在读取工作簿时显式配置 cellDates: true
+        const workbook = XLSX.read(data, { 
+          type: 'array',
+          cellDates: true 
+        });
+        
+        // 🛠️ 关键修改 2：在转换为 JSON 时指定日期格式化规范
+        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {
+          raw: false,
+          dateNF: 'yyyy-mm-dd'
+        });
         
         if (rawRows.length === 0) throw new Error("Excel 未包含有效数据行。");
 
-        statusMsg.innerText = "正在清洗并清洗过滤重复行...";
+        statusMsg.innerText = "正在清洗并过滤重复行...";
 
         const batchId = "BATCH_" + Date.now();
         const seenKeys = new Set();
@@ -240,7 +247,6 @@
           if (hasValidData && newRow.order_no && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
             const uniqueKey = `${newRow.order_no}_${newRow.barcode}`;
             
-            // 🛠️ 查重拦截：同一张单据中如存在完全重复的商品行，只保留首条，后续重复行直接丢弃
             if (seenKeys.has(uniqueKey)) {
               return; 
             }
