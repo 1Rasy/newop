@@ -183,14 +183,23 @@ function parseReturnHandleText(val) {
 async function init(){
   try {
     document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+    
+    // 获取员工与商品数据
     const e = await client.from('employees').select('*');
     const p = await client.from('products').select('*');
+    
     employees = e.data || [];
+    
+    // 对商品数据规格做深度清洗与去空格处理，防止因空格导致去重失败、规格不全
     products = (p.data || []).map(x => ({ 
       ...x, 
+      brand: (x.brand || '未知品牌').trim(),
       spec: (x.spec || '常规款').trim(),
       pcs_per_box: parseInt(x.pcs_per_box) || 0 
     }));
+    
+    // 强制先清空搜索状态，确保无误展示完整员工列表
+    autoResetSearchState();
     renderEmployees();
   } catch (err) {
     console.error(err);
@@ -219,7 +228,7 @@ function clearSearchInput() {
   else if(STATE === 'STORE') renderStores();
 }
 
-function getSearch(){ return document.getElementById('search').value || ''; }
+function getSearch(){ return (document.getElementById('search').value || '').trim(); }
 
 function renderEmployees(){
   STATE = 'EMP';
@@ -231,6 +240,7 @@ function renderEmployees(){
   document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
 
   const k = getSearch();
+  // 筛选员工数据
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
 
   if (list.length === 0) {
@@ -243,7 +253,7 @@ function renderEmployees(){
       ${list.map(e=>`
         <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
           <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
-          <div class='sub' style="font-size:12px;">${e.employee_code}</div>
+          <div class='sub' style="font-size:12px;">工号: ${e.employee_code}</div>
         </div>
       `).join('')}
     </div>
@@ -430,8 +440,12 @@ async function openStockManagement(){
 function generateFilterHeaderHtml() {
   const brands = [...new Set(products.map(p => p.brand))];
   if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
+  
+  // 核心优化：确保获取当前品牌下的全部可用规格，不遗漏
   const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))];
-  if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) currentSelectedSpec = "ALL";
+  if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) {
+    currentSelectedSpec = "ALL";
+  }
 
   return `
     <div class='brand-nav'>
@@ -472,6 +486,7 @@ function renderStockPage(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
   
+  // 过滤当前选定品牌和规格的商品
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
 
   document.getElementById('list').innerHTML = `
@@ -941,8 +956,6 @@ function calculateLiveOrderAmounts() {
 
 function renderOrder(){
   STATE = 'ORDER';
-  
-  // 💡 核心修改点：开单列表完全根据当前选中的大筛选（Brand）和小筛选（Spec）动态过滤商品
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
   const isTemp = String(orderData.atom).startsWith('NEW_');
 
@@ -1037,12 +1050,14 @@ function pickerChangePrice(id, value) {
   const currentProd = products.find(x => String(x.id) === String(id));
   if (!currentProd) return;
 
+  // 深度优化：防止由于不规范的空格导致过滤失败
   const sameSpecProducts = products.filter(p => p.brand === currentProd.brand && p.spec === currentProd.spec);
   sameSpecProducts.forEach(p => {
     initItemState(p.id);
     if(orderData.items[p.id]) orderData.items[p.id].price = targetPrice;
   });
 
+  // 联动修改单价后，直接重新载入局部渲染，保证不打乱当前选定规格的商品展示
   renderOrder();
 }
 
@@ -1060,7 +1075,7 @@ async function submitOrder(){
   });
 
   if (grandTotalQty === 0) {
-    alert("⚠️ 订单中没有填写 any 有效的销售、赠送 or 收回数量，无法提交空白单据！");
+    alert("⚠️ 订单中没有填写任何有效的销售、赠送 or 收回数量，无法提交空白单据！");
     return;
   }
 
