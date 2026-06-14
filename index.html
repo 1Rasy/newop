@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>开单+库存</title>
+  <title>随随车零售与车存账套</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <style>
     :root {
@@ -38,10 +38,6 @@
     .picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
     .ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }
     .ios-picker:focus { border-color: var(--primary); background: #fff; }
-    .aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
-    .aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }
-    .aftersale-options { display: flex; gap: 14px; margin-top: 2px; }
-    .aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
     .store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
     .btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }
     .btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }
@@ -55,9 +51,6 @@
     .search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }
     .search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }
     .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
-    .search-clear-btn:active { background: #d0c9d2; }
-    .btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }
-    .btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
     .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
     .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
     .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
@@ -135,75 +128,30 @@ function formatQtyToUnits(totalPcs, specCase, specBox) {
   }
 }
 
-function getPriceDecimalPlaces(prodId) {
-  const idNum = Number(prodId);
-  return (idNum >= 49 && idNum <= 55) ? 2 : 1;
-}
-
-function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
-  let saleAmount = 0; 
-  let giftAmount = 0; 
-  let restoreAmount = 0; 
-  let scrapAmount = 0;    
-
-  const isOreo = isSpecialSpecOreo(productObj);
-  const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
-  const specBox = isOreo ? (productObj.pcs_per_box || 6) : (productObj.pcs_per_box || 0);
-
-  if (isOreo) {
-    saleAmount = qty * livePrice;
-    const liveSingleBagPrice = livePrice / (specBox || 6);
-    const defaultSingleBagPrice = defaultPrice / (specBox || 6);
-    giftAmount = giftQty * defaultSingleBagPrice; 
-    if (returnHandle === 'SCRAP') {
-      scrapAmount = returnQty * liveSingleBagPrice; 
-    } else {
-      restoreAmount = returnQty * liveSingleBagPrice; 
-    }
-  } else {
-    saleAmount = qty * livePrice;
-    giftAmount = giftQty * defaultPrice; 
-    if (returnHandle === 'SCRAP') {
-      scrapAmount = returnQty * livePrice;
-    } else {
-      restoreAmount = returnQty * livePrice;
-    }
-  }
-  return { saleAmount, giftAmount, restoreAmount, scrapAmount };
-}
-
-function parseReturnHandleText(val) {
-  if (!val || typeof val !== 'string' || !val.includes('_')) {
-    return { qty: 0, handle: 'RESTORE' };
-  }
-  const parts = val.split('_');
-  return { qty: parseInt(parts[0]) || 0, handle: parts[1] || 'RESTORE' };
-}
-
 async function init(){
   try {
-    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在载入系统资源...</div>';
     
-    // 获取员工与商品数据
-    const e = await client.from('employees').select('*');
-    const p = await client.from('products').select('*');
+    // 1. 获取白名单活跃员工
+    const { data: empData } = await client.from('employees').select('*').eq('is_active', true);
+    employees = empData || [];
     
-    employees = e.data || [];
-    
-    // 对商品数据规格做深度清洗与去空格处理，防止因空格导致去重失败、规格不全
-    products = (p.data || []).map(x => ({ 
+    // 2. 加载有效商品数据字典
+    const { data: prodData } = await client.from('products').select('*').eq('is_active', true);
+    products = (prodData || []).map(x => ({ 
       ...x, 
       brand: (x.brand || '未知品牌').trim(),
       spec: (x.spec || '常规款').trim(),
-      pcs_per_box: parseInt(x.pcs_per_box) || 0 
+      name: (x.name || '未命名商品').trim(),
+      pcs_per_case: Number(x.pcs_per_case) || 24,
+      pcs_per_box: Number(x.pcs_per_box) || 0 
     }));
     
-    // 强制先清空搜索状态，确保无误展示完整员工列表
     autoResetSearchState();
     renderEmployees();
   } catch (err) {
     console.error(err);
-    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 页面初始化失败，请刷新重试</div>';
+    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 系统资源初始化失败，请检查网络或配置</div>';
   }
 }
 
@@ -237,22 +185,22 @@ function renderEmployees(){
   document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.remove('hide'); 
-  document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
+  document.getElementById('search').placeholder = "🔍 搜索白名单中的员工姓名或工号...";
 
   const k = getSearch();
-  // 筛选员工数据
-  const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
+  const list = employees.filter(e=> (e.name||'').includes(k) || (e.employee_code||'').includes(k) );
 
   if (list.length === 0) {
-    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:30px;">⚠️ 未找到匹配的员工</div>`;
+    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:30px;">⚠️ 未找到匹配的活跃员工</div>`;
     return;
   }
 
   document.getElementById('list').innerHTML = `
+    <div style="font-size:14px; font-weight:700; color:var(--primary); margin:4px 0 10px 4px;">👥 活跃员工白名单：</div>
     <div class="emp-grid">
       ${list.map(e=>`
-        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
-          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
+        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.name}')">
+          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.name}</strong>
           <div class='sub' style="font-size:12px;">工号: ${e.employee_code}</div>
         </div>
       `).join('')}
@@ -268,13 +216,15 @@ async function openEmployee(code, name){
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载分配绑定的门店...</div>';
 
-  const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
-  const codes = (r.data || []).map(i => String(i.atom_code).trim());
-
-  const { data: matchedStores } = await client.from('stores_dim').select('*').in('atom_code', codes);
-  stores = (matchedStores || []).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
+  const { data: assetStores } = await client.from('employee_store_assets').select('*').eq('employee_code', code);
+  
+  stores = (assetStores || []).map(s => ({
+    atom_code: s.atom_code,
+    store_name: s.store_name
+  })).sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
+  
   renderStores();
 }
 
@@ -324,16 +274,16 @@ function renderStores(){
 
   let listHtml = `
     <div class="store-top-gates">
-      <button class="btn-gate-half btn-gate-stock" onclick="openStockManagement()">📦 库存管理</button>
-      <button class="btn-gate-half btn-gate-report" onclick="openSaleReport()">📊 卖进数据</button>
-      <button class="btn-gate-half btn-gate-newstore" onclick="openNewStoreManagement()">🆕 新门店</button>
+      <button class="btn-gate-half btn-gate-stock" onclick="openStockManagement()">📦 车销库存</button>
+      <button class="btn-gate-half btn-gate-report" onclick="openSaleReport()">📊 卖进日报</button>
+      <button class="btn-gate-half btn-gate-newstore" onclick="openNewStoreManagement()">🆕 临时门店</button>
     </div>
-    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>门店总数：${stores.length} 家</div>
+    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>负责门店总数：${stores.length} 家</div>
     <div class="store-container">
   `;
 
   if (sortedLetters.length === 0) {
-    listHtml += `<div class="sub" style="text-align:center;padding:20px;">⚠️ 未找到匹配的店铺</div>`;
+    listHtml += `<div class="sub" style="text-align:center;padding:20px;">⚠️ 未找到绑定的门店</div>`;
   } else {
     sortedLetters.forEach(letter => {
       listHtml += `<div id="group_letter_${letter}" class="letter-group-title">${letter}</div>`;
@@ -343,8 +293,8 @@ function renderStores(){
           <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
             <div class="item-main-row">
               <div>
-                <strong style="font-size:16px;color:var(--primary);">${s.store_name} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">新门店</span>' : ''}</strong>
-                <div class='sub'>${s.atom_code}</div>
+                <strong style="font-size:16px;color:var(--primary);">${s.store_name} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">临时</span>' : ''}</strong>
+                <div class='sub'>编码: ${s.atom_code}</div>
               </div>
             </div>
           </div>
@@ -372,17 +322,17 @@ function openNewStoreManagement() {
   const newStoresList = stores.filter(s => String(s.atom_code).startsWith('NEW_'));
 
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">🆕 新门店开单管理</div>
-    <div class="sub" style="margin-bottom: 16px;">在此可以对尚未录入系统的临时新门店进行开单与管理。</div>
+    <div class="big-store-title">🆕 临时门店开单</div>
+    <div class="sub" style="margin-bottom: 16px;">在此可以为主体创建临时新门店进行开单。</div>
     
     <div style="margin: 14px 0;">
-      <button class="btn-new-order" style="background:linear-gradient(135deg, #ff9c6e, #ff4d4f);" onclick="triggerCreateNewStore()">＋ 创建新门店并开单</button>
+      <button class="btn-new-order" style="background:linear-gradient(135deg, #ff9c6e, #ff4d4f);" onclick="triggerCreateNewStore()">＋ 自主新增临时门店</button>
     </div>
 
-    <div style='font-size:14px; font-weight:800; color:var(--primary); margin: 18px 0 8px 4px;'>已开单的新门店列表 (${newStoresList.length})</div>
+    <div style='font-size:14px; font-weight:800; color:var(--primary); margin: 18px 0 8px 4px;'>已开单的临时门店 (${newStoresList.length})</div>
     ${newStoresList.length === 0 ? `
       <div class="sub" style="text-align:center; padding:40px; color:#aaa; background:#faf9fa; border-radius:8px; border:1px dashed #e2dde3;">
-        暂无自主创建的新门店信息
+        暂无临时门店开单记录
       </div>
     ` : newStoresList.map(s => `
       <div class="history-item" style="border-left: 4px solid #ff7875;">
@@ -399,7 +349,7 @@ function openNewStoreManagement() {
 }
 
 function triggerCreateNewStore() {
-  const storeName = prompt("请输入自定义新门店的名称:");
+  const storeName = prompt("请输入新增临时门店的名称:");
   if (!storeName || storeName.trim() === "") {
     if (storeName !== null) alert("门店名称不能为空！");
     return;
@@ -421,11 +371,12 @@ async function openStockManagement(){
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
   document.getElementById('searchBlock').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在载入最新车销账面存量...</div>';
 
-  const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
+  // 💡 纯净数据读取：只查 van_stocks
+  const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
   const stockMap = {};
-  (currentStocks || []).forEach(st => { stockMap[st.product_id] = st.stock_qty || 0; });
+  (currentStocks || []).forEach(st => { stockMap[st.product_barcode] = Number(st.qty) || 0; });
 
   stockData = { emp_code: currentEmployee.code, currentStockMap: stockMap, additions: {} };
 
@@ -441,7 +392,6 @@ function generateFilterHeaderHtml() {
   const brands = [...new Set(products.map(p => p.brand))];
   if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
   
-  // 核心优化：确保获取当前品牌下的全部可用规格，不遗漏
   const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))];
   if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) {
     currentSelectedSpec = "ALL";
@@ -455,7 +405,7 @@ function generateFilterHeaderHtml() {
       <div class="spec-badge ${currentSelectedSpec === 'ALL' ? 'active' : ''}" onclick="selectSpec('ALL')">全部规格</div>
       ${availableSpecs.map(sp => `<div class="spec-badge ${currentSelectedSpec === sp ? 'active' : ''}" onclick="selectSpec('${sp}')">${sp}</div>`).join('')}
     </div>
-    <div class='brand'>📂 筛选结果：${currentSelectedBrand || '未选择'} ➔ ${currentSelectedSpec === 'ALL' ? '全部规格' : currentSelectedSpec}</div>
+    <div class='brand'>📂 筛选：${currentSelectedBrand || '无'} ➔ ${currentSelectedSpec === 'ALL' ? '全部规格' : currentSelectedSpec}</div>
   `;
 }
 
@@ -474,7 +424,7 @@ function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
   let html = '';
   let start = Math.max(0.1, centerPrice - 15);
   let end = centerPrice + 30;
-  let step = stepPlaces === 2 ? 0.05 : 0.1; 
+  let step = 0.1; 
   for (let p = start; p <= end; p += step) {
     let val = +p.toFixed(stepPlaces);
     html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.005 ? 'selected' : ''}>${val.toFixed(stepPlaces)}</option>`;
@@ -486,86 +436,88 @@ function renderStockPage(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
   
-  // 过滤当前选定品牌和规格的商品
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
 
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 主体：${currentEmployee.name}</div>
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom: 12px;'>🏢 车销库存看板：${currentEmployee.name}</div>
+    
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
       const specCase = p.pcs_per_case || 24; 
       const specBox = p.pcs_per_box || 0;
       
-      const totalPcs = stockData.currentStockMap[p.id] || 0; 
+      const totalPcs = stockData.currentStockMap[p.barcode] || 0; 
       const formattedStockText = formatQtyToUnits(totalPcs, specCase, specBox);
 
-      const currentDir = stockData.additions[p.id]?.dir || 'plus';
-      const curC = stockData.additions[p.id]?.cases || 0;
-      const curB = stockData.additions[p.id]?.boxes || 0;
-      const curP = stockData.additions[p.id]?.pcs || 0;
+      const currentDir = stockData.additions[p.barcode]?.dir || 'plus';
+      const curC = stockData.additions[p.barcode]?.cases || 0;
+      const curB = stockData.additions[p.barcode]?.boxes || 0;
+      const curP = stockData.additions[p.barcode]?.pcs || 0;
 
       return `
         <div class="stock-row">
-          <div style="font-weight:600; font-size:15px; color:var(--primary);">${p.spec} ${p.product_name}</div>
-          <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
-            当前库存: <strong>${formattedStockText}</strong>
+          <div style="font-weight:600; font-size:15px; color:var(--primary);">${p.spec} ${p.name}</div>
+          <div style="font-size:11px; color:#aaa; margin-bottom:4px;">条码: ${p.barcode}</div>
+          <div style="font-size:13px; margin-top:2px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
+            系统账面余量: <strong>${formattedStockText}</strong> <span style="font-size:11px;color:#666;">(${totalPcs}个)</span>
           </div>
           <div class="stock-input-group">
-            <select class="stock-dir-select" onchange="updateStockInput('${p.id}', 'dir', this.value)">
-              <option value="plus" ${currentDir === 'plus' ? 'selected' : ''}>增加 ➕</option>
-              <option value="minus" ${currentDir === 'minus' ? 'selected' : ''}>减少 ➖</option>
+            <select class="stock-dir-select" onchange="updateStockInput('${p.barcode}', 'dir', this.value)">
+              <option value="plus" ${currentDir === 'plus' ? 'selected' : ''}>手动盘盈 ➕</option>
+              <option value="minus" ${currentDir === 'minus' ? 'selected' : ''}>手动盘亏 ➖</option>
             </select>
             
             <div class="picker-wrapper">
-              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
+              <select class="ios-picker" onchange="updateStockInput('${p.barcode}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
             </div>
             
             <div class="picker-wrapper ${specBox === 0 ? 'hide' : ''}">
-              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
+              <select class="ios-picker" onchange="updateStockInput('${p.barcode}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
             </div>
             
             <div class="picker-wrapper">
-              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">个</span>
+              <select class="ios-picker" onchange="updateStockInput('${p.barcode}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">个</span>
             </div>
           </div>
         </div>
       `;
     }).join('')}
-    <button class='float-submit' onclick='submitStock()'>💾 更新库存</button>
+    <button class='float-submit' onclick='submitStock()'>💾 确认手动微调</button>
   `;
 }
 
-function updateStockInput(prodId, type, val){
-  if(!stockData.additions[prodId]) stockData.additions[prodId] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
-  if(type === 'dir') stockData.additions[prodId].dir = val;
-  else stockData.additions[prodId][type] = parseInt(val) || 0;
+function updateStockInput(barcode, type, val){
+  if(!stockData.additions[barcode]) stockData.additions[barcode] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
+  if(type === 'dir') stockData.additions[barcode].dir = val;
+  else stockData.additions[barcode][type] = parseInt(val) || 0;
 }
 
 async function submitStock(){
-  const addIds = Object.keys(stockData.additions);
+  const addBarcodes = Object.keys(stockData.additions);
   let hasData = false; const updates = []; 
 
-  for(let id of addIds){
-    const p = products.find(x => String(x.id) === String(id));
+  for(let bc of addBarcodes){
+    const p = products.find(x => String(x.barcode) === String(bc));
     if(!p) continue;
     const specCase = p.pcs_per_case || 24; 
     const specBox = p.pcs_per_box || 0;
     
-    const dir = stockData.additions[id].dir || 'plus';
-    const addedCases = stockData.additions[id].cases || 0;
-    const addedBoxes = stockData.additions[id].boxes || 0;
-    const addedPcs = stockData.additions[id].pcs || 0;
+    const dir = stockData.additions[bc].dir || 'plus';
+    const addedCases = stockData.additions[bc].cases || 0;
+    const addedBoxes = stockData.additions[bc].boxes || 0;
+    const addedPcs = stockData.additions[bc].pcs || 0;
 
     let delta = specBox > 0 ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs : (addedCases * specCase) + addedPcs;
     if(delta > 0){
-      hasData = true; const currentTotal = stockData.currentStockMap[id] || 0;
+      hasData = true; const currentTotal = stockData.currentStockMap[bc] || 0;
       let newTotal = dir === 'plus' ? currentTotal + delta : currentTotal - delta;
-      if (newTotal < 0) { alert(`❌ [${p.product_name}] 可用库存不足！`); return; }
-      updates.push({ employee_code: stockData.emp_code, product_id: Number(id), stock_qty: newTotal });
+      if (newTotal < 0) { alert(`❌ [${p.name}] 微调后车存不能为负数！`); return; }
+      updates.push({ employee_code: stockData.emp_code, product_barcode: bc, qty: newTotal, updated_at: new Date().toISOString() });
     }
   }
-  if(!hasData){ alert("请输入变更量！"); return; }
-  await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
+  if(!hasData){ alert("请先选择方向并选择需要手动调整的数量！"); return; }
+  
+  await client.from('van_stocks').upsert(updates, { onConflict: 'employee_code,product_barcode' });
   openStockManagement();
 }
 
@@ -575,35 +527,22 @@ async function openStoreHistory(atom, name) {
   document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据流向历史...</div>';
   
-  const { data: ordersData } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
+  const { data: ordersData } = await client.from('sales_orders').select('*').eq('atom_code', atom).order('created_at', { ascending: false });
   historyOrders = ordersData || []; 
 
   if(historyOrders.length > 0) {
-    const orderIds = historyOrders.map(o => o.id);
-    const { data: itemsData } = await client.from('order_items').select('*').in('order_id', orderIds);
+    const orderNos = historyOrders.map(o => o.order_no);
+    const { data: itemsData } = await client.from('sales_order_items').select('*').in('order_no', orderNos);
     const allItems = itemsData || [];
 
     historyOrders.forEach(o => {
-      let sSum = 0; let gSum = 0; let resSum = 0; let scrSum = 0;
-      const oItems = allItems.filter(it => it.order_id === o.id);
-      oItems.forEach(it => {
-        const pObj = products.find(x => String(x.id) === String(it.product_id));
-        if(!pObj) return;
-        const parsedReturn = parseReturnHandleText(it.return_handle);
-        const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-        sSum += rowRes.saleAmount; 
-        gSum += rowRes.giftAmount; 
-        resSum += rowRes.restoreAmount; 
-        scrSum += rowRes.scrapAmount;
-      });
+      let sSum = 0; 
+      const oItems = allItems.filter(it => it.order_no === o.order_no);
+      oItems.forEach(it => { sSum += Number(it.amount || 0); });
       o.skuCount = oItems.length;
       o.saleSum = sSum; 
-      o.giftSum = gSum; 
-      o.restoreSum = resSum; 
-      o.scrapSum = scrSum;
-      o.netRevenue = sSum - scrSum - gSum;
     });
   }
   renderHistory();
@@ -614,84 +553,57 @@ function renderHistory(){
   document.getElementById('editStateBadge').classList.add('hide'); 
   const isTemp = String(currentStore.atom).startsWith('NEW_');
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">${currentStore.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">新门店</span>' : ''}</div>
-    <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
+    <div class="big-store-title">${currentStore.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">临时</span>' : ''}</div>
+    <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 现场新建零售单据</button></div>
+    <div style="font-size:14px; font-weight:800; margin-bottom:8px; color:var(--primary);">📜 历史销售流水单：</div>
     ${historyOrders.map(o => `
-        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}', false)">
+        <div class="history-item" onclick="viewOrderDetail('${o.order_no}', '${o.created_at}', false)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:15px; font-weight:700;">📅 ${o.order_date}</span>
-            <span style="color:var(--primary); font-size:14px;">详情 →</span>
+            <span style="font-size:14px; font-weight:700; color:#444;">单号: ${o.order_no}</span>
+            <span style="color:var(--primary); font-size:13px;">详情 →</span>
           </div>
           <div style="font-size: 13px; color: var(--text-muted); line-height:1.45;">
-            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实收：${(o.netRevenue||0).toFixed(1)} 元</span><br>
-            SKU数: ${o.skuCount || 0} 款 | 卖进: ${(o.saleSum||0).toFixed(1)} 元<br>
-            赠送: ${(o.giftSum||0).toFixed(1)} 元 | 🔴 过期: ${(o.scrapSum||0).toFixed(1)} 元
+            <span style="color:var(--primary); font-weight:700; font-size:14px;">💵 金额：${(o.total_amount||0).toFixed(1)} 元</span><br>
+            品项数: ${o.skuCount || 0} 款 | 状态: <span style="color:green;font-weight:bold;">已完成</span>
           </div>
         </div>
       `).join('')}
   `;
 }
 
-async function viewOrderDetail(orderId, orderDate, fromReport = false) {
+async function viewOrderDetail(orderNo, createdAt, fromReport = false) {
   STATE = 'DETAIL'; 
   document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
   document.getElementById('editStateBadge').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
-  const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在读取细项明细...</div>';
+  
+  const { data: items } = await client.from('sales_order_items').select('*').eq('order_no', orderNo);
   
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
-  let detailSaleSum = 0; let detailGiftSum = 0; let detailRestoreSum = 0; let detailScrapSum = 0;
-
-  items.forEach(it => {
-    const pObj = products.find(x => String(x.id) === String(it.product_id));
-    if(!pObj) return;
-    const parsedReturn = parseReturnHandleText(it.return_handle);
-    const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-    detailSaleSum += rowRes.saleAmount; 
-    detailGiftSum += rowRes.giftAmount; 
-    detailRestoreSum += rowRes.restoreAmount; 
-    detailScrapSum += rowRes.scrapAmount;
-  });
+  let detailSaleSum = 0; 
+  (items || []).forEach(it => { detailSaleSum += Number(it.amount || 0); });
   
-  let detailNetRevenue = detailSaleSum - detailScrapSum - detailGiftSum;
-
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
     <div class="amount-summary-banner" style="line-height:1.55;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>实收：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
-      SKU数：${items.length} 款 | 卖进：${detailSaleSum.toFixed(1)} 元<br>
-      赠送：${detailGiftSum.toFixed(1)} 元 | 🔴 过期：${detailScrapSum.toFixed(1)} 元
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>总销售实收：${detailSaleSum.toFixed(1)} 元</strong></span><br>
+      单号：${orderNo}<br>
+      SKU售出数：${items.length} 款
     </div>
     <div style="display:flex; gap:10px; margin: 10px 0;">
-      <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
-      <button class="smallbtn" style="background:#fef0f0; color:#f56c6c; border-color:#fde2e2;" onclick="deleteExistingOrder('${orderId}', '${rawItemsJSON}')">🗑️ 删除订单</button>
+      <button class="smallbtn" style="background:#fef0f0; color:#f56c6c; border-color:#fde2e2;" onclick="deleteExistingOrder('${orderNo}', '${rawItemsJSON}')">🗑️ 现场作废删除此单</button>
     </div>
     ${items.map(it => {
-      const p = products.find(x => String(x.id) === String(it.product_id)) || { product_name: '未知商品', spec: '常规', pcs_per_box: 0 };
-      const parsedReturn = parseReturnHandleText(it.return_handle);
-      
-      const rowRes = getLiveRowAmounts(p, Number(it.qty || 0), Number(it.price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-      const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
-
-      const isOreoSpecial = isSpecialSpecOreo(p);
-      let saleUnitLabel = isOreoSpecial ? "盒" : "个"; 
-      let saleQtyDisplayText = `${it.qty} ${saleUnitLabel}`;
-
+      const p = products.find(x => String(x.barcode) === String(it.barcode)) || { name: it.product_name, spec: '常规' };
       return `
         <div class='item'>
-          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.spec} ${p.product_name}</div>
+          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.spec} ${it.product_name}</div>
           <div class="detail-grid-container">
             <div class="detail-grid-item">
-              <span>实收: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
+              <span>实收小计: <strong style="color:var(--primary); font-size:14px;">${Number(it.amount).toFixed(1)}元</strong></span>
             </div>
             <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>卖进: <strong>${saleQtyDisplayText}</strong> × ${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span>
-            </div>
-            <div class="detail-grid-item">
-              <span>赠送: <span style="color:#1890ff; font-weight:bold;">${it.gift_qty || 0}</span> 个</span>
-            </div>
-            <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>过期: <span style="color:red; font-weight:bold;">${parsedReturn.handle === 'SCRAP' ? parsedReturn.qty : 0}</span> 个</span>
+              <span>售出数量: <strong>${it.qty} 个</strong> × ${Number(it.unit_price).toFixed(1)}元</span>
             </div>
           </div>
         </div>`;
@@ -699,61 +611,46 @@ async function viewOrderDetail(orderId, orderDate, fromReport = false) {
   `;
 }
 
-async function deleteExistingOrder(orderId, rawItemsEncoded) {
-  if (!confirm("确定要删除这笔订单吗？")) return;
+async function deleteExistingOrder(orderNo, rawItemsEncoded) {
+  if (!confirm("⚠️ 作废订单将自动原路返回退回员工的车销 van_stocks 可用库存！确定删除吗？")) return;
 
   const listEl = document.getElementById('list');
   const isFromReport = listEl.getAttribute('data-from-report') === 'true';
-  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在删除...</div>';
+  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在作废并回滚车存...</div>';
 
   try {
     const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
 
-    const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
-    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
+    const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
+    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
 
     const stockUpdates = [];
     items.forEach(it => {
-      const parsedReturn = parseReturnHandleText(it.return_handle);
-      const pObj = products.find(x => String(x.id) === String(it.product_id));
-      if (!pObj) return;
-
-      const isOreoSpecial = isSpecialSpecOreo(pObj);
-      const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
-
-      const saleBags = isOreoSpecial ? (Number(it.qty || 0) * specBox) : Number(it.qty || 0);
-      const giftBags = Number(it.gift_qty || 0);
-      const returnBags = Number(parsedReturn.qty || 0);
-
-      let oldNetImpact = saleBags + giftBags;
-      if (parsedReturn.handle === 'RESTORE') {
-        oldNetImpact -= returnBags;
-      }
-
-      const restoredStock = Number(liveStockMap[it.product_id] || 0) + oldNetImpact;
+      const bc = it.barcode;
+      const oldSoldQty = Number(it.qty || 0);
+      const restoredStock = Number(liveStockMap[bc] || 0) + oldSoldQty;
+      
       stockUpdates.push({
         employee_code: currentEmployee.code,
-        product_id: Number(it.product_id),
-        stock_qty: restoredStock
+        product_barcode: bc,
+        qty: restoredStock,
+        updated_at: new Date().toISOString()
       });
     });
 
-    await client.from('order_items').delete().eq('order_id', orderId);
-    await client.from('orders').delete().eq('id', orderId);
+    await client.from('sales_order_items').delete().eq('order_no', orderNo);
+    await client.from('sales_orders').delete().eq('order_no', orderNo);
 
     if (stockUpdates.length > 0) {
-      await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
+      await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
     }
 
-    if (isFromReport) {
-      openSaleReport(selectedReportDate);
-    } else {
-      openStoreHistory(currentStore.atom, currentStore.name);
-    }
+    if (isFromReport) openSaleReport(selectedReportDate);
+    else openStoreHistory(currentStore.atom, currentStore.name);
   } catch (err) {
     console.error(err);
-    alert("❌ 删除失败，请检查网络或重试");
-    viewOrderDetail(orderId, selectedReportDate, isFromReport);
+    alert("❌ 作废失败：" + err.message);
+    openStoreHistory(currentStore.atom, currentStore.name);
   }
 }
 
@@ -770,80 +667,28 @@ async function openSaleReport(targetDate) {
     targetDate = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
   }
   selectedReportDate = targetDate;
-  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在加载...</div>`;
+  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在核算当日流水报表...</div>`;
 
-  const { data: dayOrders } = await client.from('orders')
-    .select('*')
-    .eq('employee_code', currentEmployee.code)
-    .eq('order_date', targetDate);
+  const { data: dayOrders } = await client.from('sales_orders').select('*').eq('employee_code', currentEmployee.code);
+  const filteredOrders = (dayOrders || []).filter(o => String(o.created_at).startsWith(targetDate));
 
-  if(!dayOrders || dayOrders.length === 0) {
-    renderReportHtml(targetDate, 0, 0, 0, 0, []);
+  if(filteredOrders.length === 0) {
+    renderReportHtml(targetDate, 0, []);
     return;
   }
 
-  const oIds = dayOrders.map(o => o.id);
-  const { data: dayItems } = await client.from('order_items').select('*').in('order_id', oIds);
-  const itemsList = dayItems || [];
+  let dayTotalSale = 0; 
+  filteredOrders.forEach(o => { dayTotalSale += Number(o.total_amount || 0); });
 
-  let dayTotalSale = 0; let dayTotalGiftAmt = 0; let dayTotalScrapAmt = 0;
-  let totalGiftPcs = 0; let totalScrapPcs = 0;
-  
-  const orderSummaryMap = {};
-
-  dayOrders.forEach(o => {
-    const matchStore = stores.find(s => String(s.atom_code).trim() === String(o.atom_code).trim());
-    const storeName = matchStore ? matchStore.store_name : `未知门店(${o.atom_code})`;
-    
-    orderSummaryMap[o.id] = {
-      orderId: o.id,
-      orderDate: o.order_date,
-      atomCode: o.atom_code,
-      storeName: storeName,
-      sellInAmount: 0,
-      netRevenue: 0,
-      skuCount: 0
-    };
-  });
-
-  itemsList.forEach(it => {
-    const p = products.find(x => String(x.id) === String(it.product_id));
-    if(!p) return;
-    const parsed = parseReturnHandleText(it.return_handle);
-
-    const qtyNum = Number(it.qty || 0);
-    const priceNum = Number(it.price || 0);
-    const giftQtyNum = Number(it.gift_qty || 0);
-    const returnQtyNum = Number(parsed.qty || 0);
-
-    const row = getLiveRowAmounts(p, qtyNum, priceNum, giftQtyNum, returnQtyNum, parsed.handle);
-
-    dayTotalSale += row.saleAmount;
-    dayTotalGiftAmt += row.giftAmount;
-    if(parsed.handle === 'SCRAP') {
-      dayTotalScrapAmt += row.scrapAmount;
-      totalScrapPcs += returnQtyNum; 
-    }
-    totalGiftPcs += giftQtyNum; 
-
-    if(orderSummaryMap[it.order_id]) {
-      const targetOrder = orderSummaryMap[it.order_id];
-      targetOrder.sellInAmount += row.saleAmount;
-      targetOrder.netRevenue += (row.saleAmount - row.giftAmount - (parsed.handle === 'SCRAP' ? row.scrapAmount : 0));
-      targetOrder.skuCount += 1;
-    }
-  });
-
-  let dayNetRevenue = dayTotalSale - dayTotalScrapAmt - dayTotalGiftAmt;
-  renderReportHtml(targetDate, dayTotalSale, dayNetRevenue, totalGiftPcs, totalScrapPcs, Object.values(orderSummaryMap));
+  renderReportHtml(targetDate, dayTotalSale, filteredOrders);
 }
 
-function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows) {
+function renderReportHtml(dateStr, saleSum, rows) {
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">📈 卖进数据日报</div>
-    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:10px;'>归属员工：${currentEmployee.name}</div>
+    <div class="big-store-title">📈 现场零售销售日报</div>
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:10px;'>出车人员：${currentEmployee.name}</div>
     
-    <div style='margin-bottom:14px; font-size:14px;'>📅 选择核算日期：
+    <div style='margin-bottom:14px; font-size:14px;'>📅 选定检索日期：
       <div class="date-picker-wrapper">
         <button class='smallbtn' style="border-color:var(--primary); color:var(--primary); font-weight:bold;">${dateStr} 🔄</button>
         <input type="date" class="real-date-input" value="${dateStr}" onchange="openSaleReport(this.value)">
@@ -851,74 +696,45 @@ function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows)
     </div>
 
     <div class="amount-summary-banner" style="line-height:1.6; background:#fbf8fc;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日总实收：${netSum.toFixed(1)} 元</strong></span><br>
-      当日总卖进：<strong>${saleSum.toFixed(1)} 元</strong><br>
-      <div style="display:flex; gap:20px; font-size:13px; margin-top:2px; color:var(--text-muted);">
-        <span>🎁 总赠送数：<strong style="color:#1890ff;">${totalGift}</strong> 个</span>
-        <span>🔴 总过期数：<strong style="color:red;">${totalScrap}</strong> 个</span>
-      </div>
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日车销总实收：${saleSum.toFixed(1)} 元</strong></span><br>
+      流水零售订单数：<strong>${rows.length} 笔</strong>
     </div>
 
-    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当日订单明细</div>
-    ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下该员工没有任何开单流水</div>` : 
+    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当日零售流水明细</div>
+    ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下没有发生 any 开单交易</div>` : 
       rows.map(r => `
         <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
-             onclick="currentStore={atom:'${r.atomCode}', name:'${r.storeName}'}; viewOrderDetail('${r.orderId}', '${r.orderDate}', true)">
+             onclick="currentStore={atom:'${r.atom_code}', name:'${r.store_name}'}; viewOrderDetail('${r.order_no}', '${r.created_at}', true)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-            <strong style="font-size:15px; color:var(--primary);">${r.storeName}</strong>
-            <span style="color:var(--text-muted); font-size:13px;">查看明细 ✏️</span>
+            <strong style="font-size:15px; color:var(--primary);">${r.store_name || '未知商户'}</strong>
+            <span style="color:var(--text-muted); font-size:13px;">明细 ✏️</span>
           </div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top:4px;">
-            <span>SKU数: ${r.skuCount} 款 | 卖进: ${r.sellInAmount.toFixed(1)} 元</span><br>
-            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 实收：${r.netRevenue.toFixed(1)} 元</span>
+            <span>单号: ${r.order_no}</span><br>
+            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 应收金额：${Number(r.total_amount).toFixed(1)} 元</span>
           </div>
         </div>
       `).join('')}
   `;
 }
 
-function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
-  isNewStoreFlow = false;
-  templateEditOrNew(orderId, orderDate, rawItemsEncoded);
-}
-
 function openOrder(atom, name){
-  isNewStoreFlow = String(atom).startsWith('NEW_');
   templateEditOrNew(null, null, null, atom, name);
 }
 
 function templateEditOrNew(orderId=null, orderDate=null, rawItemsEncoded=null, atom=null, name=null) {
   STATE = 'ORDER';
-  if(orderId) {
-    const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
-    orderData = { id: orderId, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
-    items.forEach(it => {
-      const parsedReturn = parseReturnHandleText(it.return_handle);
-      orderData.items[it.product_id] = { 
-        qty: Number(it.qty || 0), price: Number(it.price || 0), gift_qty: Number(it.gift_qty || 0),
-        return_qty: Number(parsedReturn.qty || 0), return_handle: parsedReturn.handle,
-        showPanel: Number(parsedReturn.qty || 0) > 0 || Number(it.gift_qty || 0) > 0
-      };
-      
-      const pObj = products.find(x => String(x.id) === String(it.product_id));
-      if(!pObj) return;
-      const isOreoSpecial = isSpecialSpecOreo(pObj);
-      const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
-      
-      const saleBags = isOreoSpecial ? (Number(it.qty || 0) * specBox) : Number(it.qty || 0);
-      const giftBags = Number(it.gift_qty || 0);
-      const returnBags = Number(parsedReturn.qty || 0);
-      let oldNet = saleBags + giftBags;
-      if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
-      orderData.oldItemsMap[it.product_id] = oldNet; 
-    });
-    document.getElementById('editStateBadge').classList.remove('hide');
-  } else {
-    const d = new Date(); 
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
-    document.getElementById('editStateBadge').classList.add('hide');
-  }
+  const nonce = Math.floor(1000 + Math.random() * 9000);
+  const generatedOrderNo = `SO${Date.now()}${nonce}`;
+  
+  orderData = { 
+    order_no: generatedOrderNo, 
+    atom, 
+    name, 
+    date: new Date().toISOString().split('T')[0], 
+    items: {} 
+  }; 
+  document.getElementById('editStateBadge').classList.add('hide');
 
   if (products.length > 0) {
     const brands = [...new Set(products.map(p => p.brand))];
@@ -929,28 +745,19 @@ function templateEditOrNew(orderId=null, orderDate=null, rawItemsEncoded=null, a
 }
 
 function calculateLiveOrderAmounts() {
-  let s = 0; let g = 0; let res = 0; let scr = 0;
+  let s = 0; 
   let activeSKUCount = 0;
   products.forEach(p => {
-    const item = orderData.items[p.id];
+    const item = orderData.items[p.barcode];
     if(item) {
-      if(Number(item.qty || 0) > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
-        activeSKUCount++;
-      }
-      const rowRes = getLiveRowAmounts(p, Number(item.qty || 0), Number(item.price || 0), Number(item.gift_qty || 0), Number(item.return_qty || 0), item.return_handle);
-      s += rowRes.saleAmount; 
-      g += rowRes.giftAmount; 
-      res += rowRes.restoreAmount; 
-      scr += rowRes.scrapAmount;      
+      if(Number(item.qty || 0) > 0) activeSKUCount++;
+      s += Number(item.qty || 0) * Number(item.price || 0);
     }
   });
 
-  let liveNetRevenue = s - scr - g;
-
   document.getElementById('liveAmountBanner').innerHTML = `
-    <span style="font-size:15px; color:var(--primary);">💵 <strong>实收：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
-    SKU数：${activeSKUCount} 款 | 卖进：${s.toFixed(1)} 元<br>
-    赠送：${g.toFixed(1)} 元 | 过期：${scr.toFixed(1)} 元
+    <span style="font-size:15px; color:var(--primary);">💵 <strong>本次实收总计：${s.toFixed(1)} 元</strong></span><br>
+    有效选择：${activeSKUCount} 款货品
   `;
 }
 
@@ -960,261 +767,184 @@ function renderOrder(){
   const isTemp = String(orderData.atom).startsWith('NEW_');
 
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">${orderData.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">新门店开单</span>' : ''}</div>
-    <div style='margin-bottom:8px;'>📅 日期：<span id='dateText'>${orderData.date}</span>
-      <div class="date-picker-wrapper"><button class='smallbtn'>修改日期</button><input type="date" class="real-date-input" value="${orderData.date}" onchange="syncSelectedDate(this.value)"></div>
-    </div>
+    <div class="big-store-title">${orderData.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">临时零售</span>' : ''}</div>
+    <div style='margin-bottom:8px; font-size: 13px; color:#555;'>单号：<strong>${orderData.order_no}</strong></div>
     <div id="liveAmountBanner" class="amount-summary-banner"></div>
     ${generateFilterHeaderHtml()}
+    
     ${displayProducts.map(p => {
-      const isOreoSpecial = isSpecialSpecOreo(p);
-      const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
-      
-      const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
-      const stepPlaces = getPriceDecimalPlaces(p.id);
-      
-      const saleUnitText = isOreoSpecial ? "盒" : "个";
+      const defaultPriceVal = p.default_price || 15;
+      const itData = orderData.items[p.barcode] || { qty: 0, price: defaultPriceVal };
 
       return `
         <div class='item'>
           <div class="item-main-row">
             <div class='prod-info'>
-              <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" onclick="toggleAfterSalePanel('${p.id}')">🔄 收回及赠送</button>
+              <div class='prod-name'>${p.spec} ${p.name}</div>
+              <div style="font-size:11px; color:#999; margin-top:2px;">条码: ${p.barcode}</div>
             </div>
             
             <div class='control-group'>
               <div class="picker-wrapper">
-                <span class="label-txt">销售:</span>
-                <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
+                <span class="label-txt">售出数量:</span>
+                <select class="ios-picker" onchange="pickerChangeQty('${p.barcode}', this.value)">
                   ${makePureQtyOptionsHtml(100, itData.qty)}
                 </select>
-                <span class="unit-txt">${saleUnitText}</span>
+                <span class="unit-txt">个</span>
               </div>
               <div class="picker-wrapper">
-                <span class="label-txt">单价:</span>
-                <select class="ios-picker" onchange="pickerChangePrice('${p.id}', this.value)">
-                  ${makePurePriceOptionsHtml(defaultPriceVal, stepPlaces, itData.price)}
+                <span class="label-txt">销售单价:</span>
+                <select class="ios-picker" onchange="pickerChangePrice('${p.barcode}', this.value)">
+                  ${makePurePriceOptionsHtml(defaultPriceVal, 1, itData.price)}
                 </select>
                 <span class="unit-txt">元</span>
               </div>
             </div>
           </div>
-          
-          <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
-            <div class="aftersale-row-picks">
-              <div class="picker-wrapper" style="flex:1;">
-                <span class="label-txt">收回数量:</span>
-                <select class="ios-picker" onchange="pickerChangeReturnQty('${p.id}', this.value)">
-                  ${makePureQtyOptionsHtml(100, itData.return_qty)}
-                </select>
-                <span class="unit-txt">个</span>
-              </div>
-
-              <div class="picker-wrapper" style="flex:1;">
-                <span class="label-txt">赠送:</span>
-                <select class="ios-picker" onchange="pickerChangeGiftQty('${p.id}', this.value)">
-                  ${makePureQtyOptionsHtml(50, itData.gift_qty)}
-                </select>
-                <span class="unit-txt">个</span>
-              </div>
-            </div>
-
-            <div class="aftersale-options">
-              <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle!=='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','RESTORE')">🟢 能卖</label>
-              <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle==='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','SCRAP')">🔴 过期</label>
-            </div>
-          </div>
         </div>`;
     }).join('')}
-    <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
+    <button class='float-submit' onclick='submitOrder()'>🚀 现场收款提单</button>
   `;
   calculateLiveOrderAmounts();
 }
 
-function initItemState(id) {
-  if(!orderData.items[id]){ 
-    const p = products.find(x => String(x.id) === String(id)); 
+function initItemState(barcode) {
+  if(!orderData.items[barcode]){ 
+    const p = products.find(x => String(x.barcode) === String(barcode)); 
     if(!p) return;
-    const isOreoSpecial = isSpecialSpecOreo(p);
-    const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
-    orderData.items[id] = { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
+    orderData.items[barcode] = { qty: 0, price: (p.default_price || 15) }; 
   }
 }
 
-function pickerChangeQty(id, value) { initItemState(id); if(orderData.items[id]) orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+function pickerChangeQty(barcode, value) { initItemState(barcode); if(orderData.items[barcode]) orderData.items[barcode].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 
-function pickerChangePrice(id, value) { 
-  initItemState(id); 
+function pickerChangePrice(barcode, value) { 
+  initItemState(barcode); 
   const targetPrice = parseFloat(value) || 0;
-  const currentProd = products.find(x => String(x.id) === String(id));
+  const currentProd = products.find(x => String(x.barcode) === String(barcode));
   if (!currentProd) return;
 
-  // 深度优化：防止由于不规范的空格导致过滤失败
   const sameSpecProducts = products.filter(p => p.brand === currentProd.brand && p.spec === currentProd.spec);
   sameSpecProducts.forEach(p => {
-    initItemState(p.id);
-    if(orderData.items[p.id]) orderData.items[p.id].price = targetPrice;
+    initItemState(p.barcode);
+    if(orderData.items[p.barcode]) orderData.items[p.barcode].price = targetPrice;
   });
-
-  // 联动修改单价后，直接重新载入局部渲染，保证不打乱当前选定规格的商品展示
   renderOrder();
 }
 
-function pickerChangeGiftQty(id, value) { initItemState(id); if(orderData.items[id]) orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-function pickerChangeReturnQty(id, value) { initItemState(id); if(orderData.items[id]) orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-function toggleAfterSalePanel(id) { initItemState(id); if(orderData.items[id]) orderData.items[id].showPanel = !orderData.items[id].showPanel; renderOrder(); }
-function setReturnHandle(id, h) { initItemState(id); if(orderData.items[id]) orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
-function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
-
 async function submitOrder(){
   let grandTotalQty = 0;
-  Object.keys(orderData.items).forEach(id => {
-    const it = orderData.items[id];
-    grandTotalQty += Number(it.qty || 0) + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
-  });
+  Object.keys(orderData.items).forEach(bc => { grandTotalQty += Number(orderData.items[bc].qty || 0); });
 
-  if (grandTotalQty === 0) {
-    alert("⚠️ 订单中没有填写任何有效的销售、赠送 or 收回数量，无法提交空白单据！");
-    return;
-  }
+  if (grandTotalQty === 0) { alert("⚠️ 订单中没有任何出货数量，无法提单！"); return; }
 
   const submitBtn = document.querySelector('.float-submit');
-  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 提交中...'; }
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在提交减扣车存...'; }
 
   try {
-    if (isNewStoreFlow && !orderData.id) {
-      await client.from('stores_dim').insert({
+    if (isNewStoreFlow) {
+      await client.from('employee_store_assets').insert({
+        employee_code: currentEmployee.code,
         atom_code: orderData.atom,
         store_name: orderData.name
       });
-      
-      await client.from('employee_stores').insert({
-        employee_code: currentEmployee.code,
-        atom_code: orderData.atom
-      });
-
       stores.push({ atom_code: orderData.atom, store_name: orderData.name });
       stores.sort((a, b) => (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN'));
-      
       isNewStoreFlow = false; 
     }
 
-    const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
-    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
+    const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
+    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
 
-    const stockUpdates = []; let isStockDeficit = false; 
-    const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
+    const stockUpdates = []; 
+    let isStockDeficit = false; 
+    let totalOrderAmount = 0;
+    const formattedItems = [];
 
-    for (let id of allProdIds) {
-      const item = orderData.items[id] || { qty: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
-      const oldNetImpact = Number(orderData.oldItemsMap?.[id] || 0); 
+    for (let bc of Object.keys(orderData.items)) {
+      const item = orderData.items[bc];
+      if (!item || Number(item.qty || 0) <= 0) continue;
       
-      const pObj = products.find(x => String(x.id) === String(id));
+      const pObj = products.find(x => String(x.barcode) === String(bc));
       if(!pObj) continue;
-      const isOreoSpecial = isSpecialSpecOreo(pObj);
-      const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
 
-      const saleBags = isOreoSpecial ? (Number(item.qty || 0) * specBox) : Number(item.qty || 0);
-      const giftBags = Number(item.gift_qty || 0);
-      const returnBags = Number(item.return_qty || 0);
+      const soldQty = Number(item.qty || 0);
+      const rowPrice = Number(item.price || 0);
+      const rowAmount = soldQty * rowPrice;
+      totalOrderAmount += rowAmount;
 
-      let currentNetImpact = saleBags + giftBags; 
-      if (item.return_handle === 'RESTORE') {
-        currentNetImpact -= returnBags; 
-      }
-
-      const delta = currentNetImpact - oldNetImpact; 
-      const finalNewStock = Number(liveStockMap[id] || 0) - delta;
-
+      const finalNewStock = Number(liveStockMap[bc] || 0) - soldQty;
       if (finalNewStock < 0) isStockDeficit = true;
-      if (delta !== 0 || Number(item.qty || 0) > 0 || Number(item.return_qty || 0) > 0 || Number(item.gift_qty || 0) > 0) {
-        stockUpdates.push({ employee_code: currentEmployee.code, product_id: Number(id), stock_qty: finalNewStock });
-      }
+
+      stockUpdates.push({ 
+        employee_code: currentEmployee.code, 
+        product_barcode: bc, 
+        qty: finalNewStock,
+        updated_at: new Date().toISOString()
+      });
+
+      formattedItems.push({
+        order_no: orderData.order_no,
+        barcode: bc,
+        product_name: pObj.name,
+        qty: soldQty,
+        unit_price: rowPrice,
+        amount: rowAmount
+      });
     }
 
-    const formattedItems = [];
-    Object.keys(orderData.items).forEach(id => { 
-      const it = orderData.items[id]; 
-      if(Number(it.qty || 0) > 0 || Number(it.return_qty || 0) > 0 || Number(it.gift_qty || 0) > 0){ 
-        const textValue = `${it.return_qty || 0}_${it.return_handle}`;
-        formattedItems.push({ 
-          product_id: Number(id), qty: Number(it.qty || 0), price: Number(it.price || 0), gift_qty: Number(it.gift_qty || 0), return_handle: textValue 
-        }); 
-      } 
+    await client.from('sales_orders').insert({
+      order_no: orderData.order_no,
+      employee_code: currentEmployee.code,
+      atom_code: orderData.atom,
+      store_name: orderData.name,
+      total_amount: totalOrderAmount,
+      status: 'completed'
     });
 
-    if (orderData.id) {
-      await client.from('orders').update({ order_date: orderData.date }).eq('id', orderData.id);
-      await client.from('order_items').delete().eq('order_id', orderData.id);
-      formattedItems.forEach(fit => fit.order_id = orderData.id);
-      await client.from('order_items').insert(formattedItems); 
-    } else {
-      const { data: o } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
-      formattedItems.forEach(fit => fit.order_id = o.id);
-      await client.from('order_items').insert(formattedItems); 
+    await client.from('sales_order_items').insert(formattedItems);
+
+    if (stockUpdates.length > 0) {
+      await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
     }
 
-    if (stockUpdates.length > 0) await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
-    if (isStockDeficit) alert('提交成功，但可用库存出现负数，请注意及时补充！');
+    if (isStockDeficit) alert('⚠️ 零售提单成功！部分货品扣成了负数，请注意及时补货！');
+    else alert('🎉 零售开单成功，车内存量已自动核减！');
     
     orderData = null; 
-    document.getElementById('editStateBadge').classList.add('hide');
     openStoreHistory(currentStore.atom, currentStore.name);
 
   } catch (err) {
     console.error(err);
-    alert("❌ 账单提交或创建新门店数据失败，请重试！");
-    if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
+    alert("❌ 开单失败：" + err.message);
+    if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 重新收款提单'; }
   }
 }
 
 function goBack(){
   document.getElementById('editStateBadge').classList.add('hide'); 
-  if(STATE === 'STOCK' || STATE === 'REPORT' || STATE === 'NEW_STORE_MGT') {
-    orderData = null;
-    renderStores(); 
-  }
+  if(STATE === 'STOCK' || STATE === 'REPORT' || STATE === 'NEW_STORE_MGT') { orderData = null; renderStores(); }
   else if(STATE === 'DETAIL') {
     const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
-    if(isFromReport) {
-      openSaleReport(selectedReportDate);
-    } else {
-      renderHistory();
-    }
+    if(isFromReport) openSaleReport(selectedReportDate);
+    else renderHistory();
   }
   else if(STATE === 'ORDER') {
-    if(orderData?.id) {
-      const savedId = orderData.id;
-      const savedDate = orderData.date;
-      const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
-      orderData = null; 
-      viewOrderDetail(savedId, savedDate, isFromReport);
-    } else {
-      const isTemp = String(orderData?.atom).startsWith('NEW_');
-      orderData = null;
-      if (isTemp) {
-        openNewStoreManagement();
-      } else {
-        renderHistory();
-      }
-    }
+    const isTemp = String(orderData?.atom).startsWith('NEW_');
+    orderData = null;
+    if (isTemp) openNewStoreManagement();
+    else renderHistory();
   }
   else if(STATE === 'HISTORY') {
     const isTemp = String(currentStore?.atom).startsWith('NEW_');
     orderData = null;
-    if (isTemp) {
-      openNewStoreManagement();
-    } else {
-      renderStores(); 
-    }
+    if (isTemp) openNewStoreManagement();
+    else renderStores(); 
   }
-  else if(STATE === 'STORE') {
-    orderData = null;
-    renderEmployees();
-  }
+  else if(STATE === 'STORE') { orderData = null; renderEmployees(); }
 }
 
 init();
 </script>
-</body></html>
+</body>
+</html>
