@@ -2,42 +2,21 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>经销商出库单导入系统</title>
+  <title>经销商出库单导入系统 - 强力对齐版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
-    :root { --primary: #4A154B; --bg-main: #f4f2f5; --text-main: #1f1121; --card-bg: #ffffff; }
-    body { font-family: -apple-system, sans-serif; margin: 0; padding: 20px; background: var(--bg-main); color: var(--text-main); }
-    .container { max-width: 600px; margin: 40px auto; }
-    .card { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 8px 24px rgba(74,21,75,0.05); text-align: center; }
-    h2 { margin-top: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
-    .p-tip { color: #756676; font-size: 14px; margin-bottom: 24px; }
-    
-    .upload-box { 
-      border: 2px dashed #ebdfee; 
-      background: #faf9fb; 
-      padding: 50px 20px; 
-      border-radius: 12px; 
-      cursor: pointer; 
-      transition: all 0.2s ease-in-out; 
-      position: relative; 
-    }
-    .upload-box.dragover { 
-      border-color: #10b981 !important; 
-      background: #f0fdf4 !important; 
-    }
-    .upload-box:hover { border-color: var(--primary); background: #fbf4fc; }
-    .upload-icon { font-size: 44px; margin-bottom: 12px; pointer-events: none; }
-    
-    .file-input { 
-      position: absolute; 
-      top: 0; left: 0; width: 100%; height: 100%; 
-      opacity: 0; cursor: pointer; 
-    }
-    
-    .file-info { margin-top: 20px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 14px; font-weight: bold; color: #047857; display: none; }
-    .btn-submit { margin-top: 24px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(74,21,75,0.15); transition: opacity 0.2s; }
-    .btn-submit:disabled { background: #dcd6dd; cursor: not-allowed; box-shadow: none; }
-    .status-msg { margin-top: 15px; font-size: 14px; font-weight: 600; color: var(--primary); }
+    :root { --primary: #4A154B; --bg-main: #f8f9fa; --text-main: #212529; --card-bg: #ffffff; --border-color: #dee2e6; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 40px 20px; background: var(--bg-main); color: var(--text-main); }
+    .container { max-width: 650px; margin: 0 auto; }
+    .card { background: var(--card-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; margin-bottom: 20px; color: var(--text-main); font-size: 20px; font-weight: 600; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+    .upload-box { border: 1px dashed var(--border-color); background: #ffffff; padding: 40px 20px; border-radius: 6px; cursor: pointer; text-align: center; position: relative; }
+    .upload-box.dragover { border-color: var(--primary) !important; background: #fdfafd !important; }
+    .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .file-info { margin-top: 20px; padding: 12px; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; font-size: 14px; color: #2e7d32; display: none; }
+    .btn-submit { margin-top: 20px; width: 100%; background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-submit:disabled { background: #ced4da; cursor: not-allowed; }
+    .status-msg { margin-top: 15px; font-size: 14px; font-weight: 600; color: var(--primary); text-align: center; }
     .hide { display: none !important; }
   </style>
 </head>
@@ -45,19 +24,16 @@
 
 <div class="container">
   <div class="card">
-    <h2>📊 经销商出库单导入</h2>
-    <p class="p-tip">请直接选择或拖拽经销商导出的原始 Excel 表格到下方方块中。</p>
+    <h2>经销商出库单精准对齐导入</h2>
     
     <div class="upload-box" id="dropZone">
-      <div class="upload-icon">📁</div>
-      <div style="font-weight: 600; font-size: 15px; pointer-events: none;">点击区域选择文件，或将原始 Excel 拖到这里</div>
-      <div style="font-size: 12px; color: #a195a2; margin-top: 5px; pointer-events: none;">支持 .xlsx, .xls 格式</div>
+      <div id="uploadPrompt" style="font-size: 14px; color: #495057;">点击选择文件，或将原始 Excel 文件拖拽至此处</div>
       <input type="file" id="excelFile" class="file-input" accept=".xlsx, .xls">
     </div>
     
-    <div id="fileInfo" class="file-info">📌 已成功锁定文件: <span id="fileName"></span></div>
+    <div id="fileInfo" class="file-info">已选择文件: <span id="fileName"></span></div>
     
-    <button id="submitBtn" class="btn-submit" disabled onclick="startImport()">🚀 确认一键导入数据库</button>
+    <button id="submitBtn" class="btn-submit" disabled onclick="startImport()">确认导入数据库</button>
     <div id="statusMsg" class="status-msg hide"></div>
   </div>
 </div>
@@ -68,29 +44,16 @@
 <script>
   const SUPABASE_URL = "https://wyjbnnqhiehjccmojbbg.supabase.co"; 
   const SUPABASE_KEY = "sb_publishable_WwTC7079N2e8ZQwPKUj-Gw_ewFiviFG"; 
-
   window.mySupabaseInstance = (SUPABASE_URL && SUPABASE_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
-  const SAFE_FIELD_TRANSLATOR = {
-    "单号": "order_no", "单据编号": "doc_no", "制单日期": "bill_date",
-    "客户编号": "customer_code", "客户": "customer_name", "商品编号": "sku_code",
-    "条形码": "barcode", "商品名称": "product_name", "包装": "package_reg",
-    "件": "qty_piece", "1": "amount_piece", "散": "qty_scatter",
-    "2": "unit", "3": "unit_price", "折扣": "discount", "应收款": "total_amount"
-  };
-
-  const NUMERIC_FIELDS = [
-    "package_reg", "qty_piece", "amount_piece", "qty_scatter", 
-    "unit_price", "discount", "total_amount"
-  ];
-
   // ====================================================================
-  // 🎯 核心特例拦截名单：在这里添加会产生“规格错乱”的所有特殊商品条码
+  // 🎯 核心特例配置：多个规格错乱、跳过中盒直达底层的特殊商品白名单
   // ====================================================================
   const SPECIAL_PRODUCTS_MAP = {
-    "6901234567890": true, // 特殊商品 A 真实条码
-    "6901111111111": true, // 特殊商品 B 真实条码
-    "6902222222222": true  // 更多错乱商品直接往这里整行复制即可
+    "6901234567890": { note: "特殊商品 A：跳过中盒，散等于最底层数量" },
+    "6901111111111": { note: "特殊商品 B：直接记底层散数" },
+    "6902222222222": { note: "特殊商品 C：三级规格直发" }
+    // 💡 如果还有其他特殊条码，直接复制格式往下面加即可
   };
 
   const dropZone = document.getElementById('dropZone');
@@ -101,33 +64,14 @@
   const statusMsg = document.getElementById('statusMsg');
   let selectedFile = null;
 
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-  });
-  function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-
-  ['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-  });
-  ['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-  });
-
-  dropZone.addEventListener('drop', function(e) {
-    const dt = e.dataTransfer;
-    if (dt.files.length > 0) handleFileSelection(dt.files[0]);
-  });
-
-  fileInput.addEventListener('change', function(e) {
-    if (e.target.files.length > 0) handleFileSelection(e.target.files[0]);
-  });
+  // 拖拽事件监听
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }));
+  ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.add('dragover')));
+  ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('dragover')));
+  dropZone.addEventListener('drop', e => { if (e.dataTransfer.files.length > 0) handleFileSelection(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', e => { if (e.target.files.length > 0) handleFileSelection(e.target.files[0]); });
 
   function handleFileSelection(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'xlsx' && ext !== 'xls') {
-      alert("⚠️ 格式错误！请务必上传经销商原始 Excel 表格文件（.xlsx 或 .xls）");
-      return;
-    }
     selectedFile = file;
     fileName.innerText = file.name;
     fileInfo.style.display = 'block'; 
@@ -136,105 +80,134 @@
   }
 
   function startImport() {
-    if (!selectedFile) return;
-    if (!window.mySupabaseInstance) {
-      alert("⚠️ 检测到你尚未在代码中填写真实的 Supabase URL 和 KEY！");
-      submitBtn.disabled = false;
-      return;
-    }
+    if (!selectedFile || !window.mySupabaseInstance) return;
     
     submitBtn.disabled = true;
     statusMsg.classList.remove('hide');
-    statusMsg.innerText = "⏳ 正在解析原始 Excel 文档...";
+    statusMsg.innerText = "正在扫描 Excel 物理列分布...";
 
     const reader = new FileReader();
     reader.onload = async function(e) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         
-        if (rawRows.length === 0) throw new Error("Excel 内部没有检测到任何有效行！");
+        // 🛠️ 核心改变：抛弃按行转 JSON，直接转为纯二维矩阵（行与列的坐标数组）
+        // 这样可以完全无视合并单元格、空行和多行表头引发的错位
+        const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        if (matrix.length === 0) throw new Error("Excel 未包含任何可用数据。");
 
-        statusMsg.innerText = `⚙️ 正在清洗数据并安全拦截特例商品 (${rawRows.length}行)...`;
+        // 🛡️ 第一步：智能列索引定位器
+        let headerIndex = -1;
+        let colMap = {};
 
+        // 遍历前 10 行，抓取真正包含“单号”或“单据编号”的表头核心行
+        for (let i = 0; i < Math.min(10, matrix.length); i++) {
+          const row = matrix[i].map(cell => String(cell).replace(/[\s\r\n\t]/g, ""));
+          if (row.some(cell => cell.includes("单号") || cell.includes("单据编号"))) {
+            headerIndex = i;
+            // 锚定各列的具体物理位置 (0, 1, 2, 3...)
+            row.forEach((cell, colIdx) => {
+              if (cell.includes("单号")) colMap["order_no"] = colIdx;
+              else if (cell.includes("单据编号")) colMap["doc_no"] = colIdx;
+              else if (cell.includes("制单日期")) colMap["bill_date"] = colIdx;
+              else if (cell.includes("客户编号")) colMap["customer_code"] = colIdx;
+              else if (cell.includes("客户")) colMap["customer_name"] = colIdx;
+              else if (cell.includes("商品编号")) colMap["sku_code"] = colIdx;
+              else if (cell.includes("条形码") || cell === "条码") colMap["barcode"] = colIdx;
+              else if (cell.includes("商品名称") || cell === "产品名称") colMap["product_name"] = colIdx;
+              else if (cell === "包装") colMap["package_reg"] = colIdx;
+              else if (cell === "件") colMap["qty_piece"] = colIdx;
+              else if (cell === "1") colMap["amount_piece"] = colIdx;
+              else if (cell === "散") colMap["qty_scatter"] = colIdx;
+              else if (cell === "2") colMap["unit"] = colIdx;
+              else if (cell === "3") colMap["amount_scatter"] = colIdx;
+              else if (cell.includes("折扣")) colMap["discount"] = colIdx;
+              else if (cell.includes("应收款")) colMap["total_amount"] = colIdx;
+            });
+            break;
+          }
+        }
+
+        if (headerIndex === -1 || !colMap["order_no"]) {
+          throw new Error("扫描失败：未在 Excel 前 10 行中找到包含【单号】或【单据编号】的标题行。");
+        }
+
+        statusMsg.innerText = "列定位成功，正在按物理坐标清洗数据...";
         const batchId = "BATCH_" + Date.now();
         const safePayloads = [];
 
-        rawRows.forEach(row => {
-          let newRow = { import_batch_id: batchId, is_processed: false };
-          let hasValidData = false;
-
-          for (let chineseKey in row) {
-            let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
-            
-            // 针对类似“折扣(%)”进行智能微调，防止因为清洗括号导致翻译失败
-            if (cleanKey.includes("折扣")) {
-              cleanKey = "折扣";
-            }
-
-            const englishKey = SAFE_FIELD_TRANSLATOR[cleanKey];
-            
-            if (englishKey) {
-              hasValidData = true;
-              let val = row[chineseKey];
-              
-              if (NUMERIC_FIELDS.includes(englishKey)) {
-                if (val === "" || val === undefined || val === null || String(val).trim() === "") {
-                  newRow[englishKey] = 0;
-                } else {
-                  newRow[englishKey] = Number(val);
-                }
-              } else {
-                newRow[englishKey] = (val !== undefined && val !== null) ? String(val).trim() : val;
-              }
-            }
-          }
+        // 从标题行的下一行开始，进行绝对坐标提取
+        for (let i = headerIndex + 1; i < matrix.length; i++) {
+          const rowData = matrix[i];
           
-          // 补缺机制
-          NUMERIC_FIELDS.forEach(numKey => {
-            if (newRow[numKey] === undefined) {
-              newRow[numKey] = 0;
-            }
-          });
+          // 提取单号，如果这一行没有单号或者是空行则直接跳过
+          let orderNoIdx = colMap["order_no"];
+          let orderNo = rowData[orderNoIdx] ? String(rowData[orderNoIdx]).trim() : "";
+          if (!orderNo || orderNo === "undefined" || orderNo === "null" || orderNo === "") {
+            continue; 
+          }
+
+          // 借助坐标映射机进行强转换
+          let cleanRow = {
+            import_batch_id: batchId,
+            is_processed: false,
+            order_no: orderNo,
+            doc_no: colMap["doc_no"] !== undefined ? String(rowData[colMap["doc_no"]] || "").trim() : "",
+            bill_date: colMap["bill_date"] !== undefined ? String(rowData[colMap["bill_date"]] || "").trim() : "",
+            customer_code: colMap["customer_code"] !== undefined ? String(rowData[colMap["customer_code"]] || "").trim() : "",
+            customer_name: colMap["customer_name"] !== undefined ? String(rowData[colMap["customer_name"]] || "").trim() : "",
+            sku_code: colMap["sku_code"] !== undefined ? String(rowData[colMap["sku_code"]] || "").trim() : "",
+            barcode: colMap["barcode"] !== undefined ? String(rowData[colMap["barcode"]] || "").trim() : "",
+            product_name: colMap["product_name"] !== undefined ? String(rowData[colMap["product_name"]] || "").trim() : "",
+            unit: colMap["unit"] !== undefined ? String(rowData[colMap["unit"]] || "").trim() : "",
+            
+            // 数值字段空值防御
+            package_reg: colMap["package_reg"] !== undefined ? (Number(rowData[colMap["package_reg"]]) || 0) : 0,
+            qty_piece: colMap["qty_piece"] !== undefined ? (Number(rowData[colMap["qty_piece"]]) || 0) : 0,
+            amount_piece: colMap["amount_piece"] !== undefined ? (Number(rowData[colMap["amount_piece"]]) || 0) : 0,
+            qty_scatter: colMap["qty_scatter"] !== undefined ? (Number(rowData[colMap["qty_scatter"]]) || 0) : 0,
+            amount_scatter: colMap["amount_scatter"] !== undefined ? (Number(rowData[colMap["amount_scatter"]]) || 0) : 0,
+            discount: colMap["discount"] !== undefined ? (Number(rowData[colMap["discount"]]) || 0) : 0,
+            total_amount: colMap["total_amount"] !== undefined ? (Number(rowData[colMap["total_amount"]]) || 0) : 0
+          };
 
           // ====================================================================
-          // 🛑 业务特例多商品拦截器：给名单里的特殊商品自动打上免错乱标签
+          // 🛑 核心业务多特例拦截：多条码防护
           // ====================================================================
-          if (newRow.barcode && SPECIAL_PRODUCTS_MAP[newRow.barcode]) {
-            newRow.is_triple_spec_direct = true; 
+          if (SPECIAL_PRODUCTS_MAP[cleanRow.barcode]) {
+            cleanRow.is_triple_spec_direct = true; // 激活特殊跳过中盒标记
           } else {
-            newRow.is_triple_spec_direct = false;
+            cleanRow.is_triple_spec_direct = false;
           }
 
-          // 排除掉没有单号的空行，防止破坏数据库约束
-          if (hasValidData && newRow.order_no && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
-            safePayloads.push(newRow);
-          }
-        });
-
-        if (safePayloads.length === 0) {
-          throw new Error("清洗后未发现有效数据行，请检查【单号】字段。");
+          safePayloads.push(cleanRow);
         }
 
-        statusMsg.innerText = `🚀 正在全速执行安全去重录入 Supabase (${safePayloads.length}条)...`;
+        if (safePayloads.length === 0) {
+          throw new Error("未能从定位后的数据列中分离出有效数据，请检查 Excel 格式。");
+        }
 
-        // 🛠️ 终极关键修改：改用 upsert，并锚定 order_no 冲突规则
-        const { error } = await window.mySupabaseInstance
+        statusMsg.innerText = `正在安全写入 Supabase... (有效行: ${safePayloads.length} 条)`;
+
+        // 发送给 Supabase
+        const { error: upsertError } = await window.mySupabaseInstance
           .from('raw_dealer_outbounds')
           .upsert(safePayloads, { onConflict: 'order_no' });
 
-        if (error) throw error;
+        if (upsertError) throw upsertError;
 
-        statusMsg.innerText = `✅ 成功导入数据库！`;
-        alert(`🎉 成功！已顺利通过中间安全映射程序安全导入并去重了 ${safePayloads.length} 条原始记录！\n特殊规格商品已自动打上防护标记。`);
+        statusMsg.innerText = "数据导入完成。";
+        alert(`🎉 强力对齐导入成功！\n本次通过物理列坐标共精准导入数据: ${safePayloads.length} 条。\n规格错乱商品已自动完成策略标记。`);
         
         fileInfo.style.display = 'none';
         selectedFile = null;
+        submitBtn.disabled = true;
       } catch (err) {
         console.error(err);
-        statusMsg.innerText = `❌ 导入失败`;
-        alert(`导入出错，原因: ${err.message || '请检查表头或 Supabase 配置。'}`);
+        statusMsg.innerText = "导入失败";
+        alert(`导入终止，原因: ${err.message || '未知错误'}`);
         submitBtn.disabled = false;
       }
     };
