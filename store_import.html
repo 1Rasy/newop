@@ -137,7 +137,7 @@
           safePayloads.push({
             employee_code: cleanEmpCode,
             atom_code: cleanStoreCode,
-            customer_name: String(rawStoreName).trim()
+            store_name: String(rawStoreName).trim()
           });
         }
       }
@@ -153,17 +153,17 @@
     statusDiv.innerText = `过滤完成。合规记录共 ${safePayloads.length} 条。正在写入缓冲并触发差集比对...`;
 
     try {
-      // 1. 先确保临时缓冲表是干净的
+      // 1. 确保清空临时缓冲表
       await client.from('temp_upload_assets').delete().neq('employee_code', '_clear_all_');
 
-      // 2. 将清洗后的最新数据一次性塞入临时缓冲表
+      // 2. 将清洗后的最新数据写入临时缓冲表
       const { error: insertTempError } = await client
         .from('temp_upload_assets')
         .insert(safePayloads);
 
       if (insertTempError) throw insertTempError;
 
-      // 3. 调用 Supabase RPC 函数，执行后端比对和软覆盖
+      // 3. 调用 Supabase RPC 函数执行后端原子比对和软覆盖
       const { error: rpcError } = await client.rpc('sync_and_mask_assets');
 
       if (rpcError) throw rpcError;
