@@ -11,6 +11,8 @@
       --text-main: #212529; 
       --card-bg: #ffffff; 
       --border-color: #dee2e6; 
+      --warning: #e65100;
+      --warning-bg: #fff3e0;
     }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -67,6 +69,17 @@
       display: none; 
       text-align: left;
     }
+    .warning-box {
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--warning-bg);
+      border: 1px solid #ffe0b2;
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--warning);
+      text-align: left;
+    }
+    .warning-box ul { margin: 5px 0 0 0; padding-left: 20px; max-height: 120px; overflow-y: auto; }
     .btn-submit { 
       margin-top: 20px; 
       width: 100%; 
@@ -99,6 +112,12 @@
     
     <div id="fileInfo" class="file-info">已选择文件: <span id="fileName"></span></div>
     
+    <div id="warningZone" class="warning-box hide">
+      <strong>⚠️ 发现系统中不存在的新商品条码：</strong>
+      <ul id="newBarcodeList"></ul>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #555;">提示：您可以先去后台建档，或者点击下方按钮【自动忽略新商品并继续导入】。</p>
+    </div>
+    
     <button id="submitBtn" class="btn-submit" disabled onclick="startImport()">确认导入数据库</button>
     <div id="statusMsg" class="status-msg hide"></div>
   </div>
@@ -127,12 +146,8 @@
   ];
 
   const SPECIAL_PRODUCTS_MAP = {
-    "6924513908032": true,
-    "6924513908001": true,
-    "6924513909244": true,
-    "6924513909268": true,
-    "6924513902283": true,
-    "6924513908063": true
+    "6924513908032": true, "6924513908001": true, "6924513909244": true,
+    "6924513909268": true, "6924513902283": true, "6924513908063": true
   };
 
   const dropZone = document.getElementById('dropZone');
@@ -141,7 +156,12 @@
   const fileName = document.getElementById('fileName');
   const submitBtn = document.getElementById('submitBtn');
   const statusMsg = document.getElementById('statusMsg');
+  const warningZone = document.getElementById('warningZone');
+  const newBarcodeList = document.getElementById('newBarcodeList');
+  
   let selectedFile = null;
+  let cachedSafePayloads = []; // 用于二次确认时暂存清洗好的数据
+  let ignoreNewBarcodesMode = false; // 是否开启忽略新条码模式
 
   ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropZone.addEventListener(eventName, preventDefaults, false);
@@ -175,11 +195,20 @@
     fileInfo.style.display = 'block'; 
     submitBtn.disabled = false;      
     statusMsg.classList.add('hide');
+    warningZone.classList.add('hide'); // 切换文件时隐藏上次的警告
+    ignoreNewBarcodesMode = false;
+    submitBtn.innerText = "确认导入数据库";
   }
 
   function startImport() {
     if (!selectedFile || !window.mySupabaseInstance) return;
     
+    // 如果已经是警告状态，且用户再次点击了更新后的按钮，直接走提交过滤数据的逻辑
+    if (ignoreNewBarcodesMode && cachedSafePayloads.length > 0) {
+      executeUpsert(cachedSafePayloads);
+      return;
+    }
+
     submitBtn.disabled = true;
     statusMsg.classList.remove('hide');
     statusMsg.innerText = "正在解析 Excel 数据...";
@@ -188,26 +217,18 @@
     reader.onload = async function(e) {
       try {
         const data = new Uint8Array(e.target.result);
-        
-        // 🛠️ 关键修改 1：在读取工作簿时显式配置 cellDates: true
-        const workbook = XLSX.read(data, { 
-          type: 'array',
-          cellDates: true 
-        });
-        
-        // 🛠️ 关键修改 2：在转换为 JSON 时指定日期格式化规范
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {
-          raw: false,
-          dateNF: 'yyyy-mm-dd'
+          raw: false, dateNF: 'yyyy-mm-dd'
         });
         
         if (rawRows.length === 0) throw new Error("Excel 未包含有效数据行。");
 
-        statusMsg.innerText = "正在清洗并过滤重复行...";
-
+        statusMsg.innerText = "正在清洗数据...";
         const batchId = "BATCH_" + Date.now();
         const seenKeys = new Set();
-        const safePayloads = [];
+        const excelBarcodes = new Set(); // 收集 Excel 里的所有非空条码
+        let tempPayloads = [];
 
         rawRows.forEach(row => {
           let newRow = { import_batch_id: batchId, is_processed: false };
@@ -223,11 +244,7 @@
               let val = row[chineseKey];
               
               if (NUMERIC_FIELDS.includes(englishKey)) {
-                if (val === "" || val === undefined || val === null || String(val).trim() === "") {
-                  newRow[englishKey] = 0;
-                } else {
-                  newRow[englishKey] = Number(val);
-                }
+                newRow[englishKey] = (!val || String(val).trim() === "") ? 0 : Number(val);
               } else {
                 newRow[englishKey] = (val !== undefined && val !== null) ? String(val).trim() : val;
               }
@@ -245,33 +262,62 @@
           }
 
           if (hasValidData && newRow.order_no && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
+            // 基础拦截：如果没有条码或条码无效，直接跳过
+            if (!newRow.barcode || newRow.barcode === "undefined" || newRow.barcode === "") return;
+
             const uniqueKey = `${newRow.order_no}_${newRow.barcode}`;
+            if (seenKeys.has(uniqueKey)) return; 
             
-            if (seenKeys.has(uniqueKey)) {
-              return; 
-            }
             seenKeys.add(uniqueKey);
-            safePayloads.push(newRow);
+            excelBarcodes.add(newRow.barcode); // 记录合法条码
+            tempPayloads.push(newRow);
           }
         });
 
-        if (safePayloads.length === 0) {
-          throw new Error("有效行解析为0，请核对【单号】字段。");
+        if (tempPayloads.length === 0) throw new Error("有效行解析为0，请核对【单号】与【条形码】字段。");
+
+        statusMsg.innerText = "正在校验系统商品条码...";
+        
+        // 🛠️ 关键校验步骤：去数据库里查一下这些条码哪些是合法的
+        // ⚠️ 注意：这里假设你数据库里有一张 `products` 表存放主商品，如果叫别的名字（例如 'product_infolist'），请替换这里的表名
+        const { data: existingProducts, error: checkError } = await window.mySupabaseInstance
+          .from('products') 
+          .select('barcode')
+          .in('barcode', Array.from(excelBarcodes));
+
+        if (checkError) throw new Error("商品条码验证失败: " + checkError.message);
+
+        // 提取数据库中已有的条码 Set
+        const dbBarcodeSet = new Set(existingProducts.map(p => String(p.barcode).trim()));
+        
+        // 找出 Excel 存在，但数据库不存在的“新条码”
+        const newBarcodes = Array.from(excelBarcodes).filter(bc => !dbBarcodeSet.has(bc));
+
+        if (newBarcodes.length > 0) {
+          // 🛑 发现新条码，进行前端提示拦截
+          newBarcodeList.innerHTML = "";
+          newBarcodes.forEach(bc => {
+            const li = document.createElement('li');
+            li.innerText = bc;
+            newBarcodeList.appendChild(li);
+          });
+          
+          warningZone.classList.remove('hide');
+          statusMsg.innerText = `拦截：发现 ${newBarcodes.length} 个未录入系统的新条码。`;
+          
+          // 暂存“过滤掉新条码”后的安全数据
+          cachedSafePayloads = tempPayloads.filter(row => dbBarcodeSet.has(row.barcode));
+          
+          // 改变按钮状态，允许用户强行选择过滤后导入
+          ignoreNewBarcodesMode = true;
+          submitBtn.disabled = false;
+          submitBtn.innerText = `自动忽略新商品，继续导入剩余 ${cachedSafePayloads.length} 条记录`;
+          return; 
         }
 
-        statusMsg.innerText = `正在写入数据库 (${safePayloads.length}条)...`;
+        // 如果全部条码都通过验证，直接导入
+        executeUpsert(tempPayloads);
 
-        const { error } = await window.mySupabaseInstance
-          .from('raw_dealer_outbounds')
-          .upsert(safePayloads, { onConflict: 'order_no,barcode' });
-
-        if (error) throw error;
-
-        statusMsg.innerText = "数据导入完成。";
-        alert(`导入成功，共处理 ${safePayloads.length} 条有效记录。`);
-        
-        fileInfo.style.display = 'none';
-        selectedFile = null;
       } catch (err) {
         console.error(err);
         statusMsg.innerText = "导入失败";
@@ -280,6 +326,39 @@
       }
     };
     reader.readAsArrayBuffer(selectedFile);
+  }
+
+  // 真正执行向数据库写入的函数
+  async function executeUpsert(payloads) {
+    if (payloads.length === 0) {
+      alert("没有可导入的有效数据行（全部被过滤或为空）。");
+      submitBtn.disabled = false;
+      return;
+    }
+    
+    submitBtn.disabled = true;
+    statusMsg.innerText = `正在写入数据库 (${payloads.length}条)...`;
+
+    const { error } = await window.mySupabaseInstance
+      .from('raw_dealer_outbounds')
+      .upsert(payloads, { onConflict: 'order_no,barcode' });
+
+    if (error) {
+      statusMsg.innerText = "导入失败";
+      alert(`写入数据库异常: ${error.message}`);
+      submitBtn.disabled = false;
+    } else {
+      statusMsg.innerText = "数据导入完成。";
+      alert(`导入成功，共处理 ${payloads.length} 条记录。`);
+      
+      // 重置状态
+      fileInfo.style.display = 'none';
+      warningZone.classList.add('hide');
+      selectedFile = null;
+      cachedSafePayloads = [];
+      ignoreNewBarcodesMode = false;
+      submitBtn.innerText = "确认导入数据库";
+    }
   }
 </script>
 </body>
