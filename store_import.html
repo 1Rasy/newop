@@ -61,7 +61,17 @@
     }
     try {
       const { data, error } = await client.from('employees').select('employee_code');
-      if (error) throw error;
+      
+      if (error) {
+        statusDiv.innerText = `数据库错误 [${error.code}]: ${error.message}`;
+        console.error(error);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        statusDiv.innerText = "警告：employees 表中未检测到任何员工工号";
+        return;
+      }
       
       data.forEach(emp => {
         if (emp.employee_code) employeeWhitelist.add(String(emp.employee_code).trim());
@@ -70,7 +80,7 @@
       statusDiv.innerText = `白名单加载就绪，已缓存 ${employeeWhitelist.size} 条员工记录。`;
     } catch (err) {
       console.error(err);
-      statusDiv.innerText = "错误：员工白名单数据加载失败";
+      statusDiv.innerText = `网络或系统异常: ${err.message || err}`;
     }
   }
   window.onload = initWhitelist;
@@ -146,14 +156,14 @@
       // 1. 先确保临时缓冲表是干净的
       await client.from('temp_upload_assets').delete().neq('employee_code', '_clear_all_');
 
-      -- 2. 将清洗后的最新数据一次性塞入临时缓冲表
+      // 2. 将清洗后的最新数据一次性塞入临时缓冲表
       const { error: insertTempError } = await client
         .from('temp_upload_assets')
         .insert(safePayloads);
 
       if (insertTempError) throw insertTempError;
 
-      // 3. 核心：调用 Supabase RPC 函数，让后端数据库执行秒级的高校比对和软覆盖
+      // 3. 调用 Supabase RPC 函数，执行后端比对和软覆盖
       const { error: rpcError } = await client.rpc('sync_and_mask_assets');
 
       if (rpcError) throw rpcError;
