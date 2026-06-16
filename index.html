@@ -56,18 +56,35 @@ function formatQtyToUnits(totalPcs, specCase, specBox) {
   }
 }
 
-function getLiveRowAmounts(productObj, totalBags, livePrice) {
-  const specCase = productObj.pcs_per_case || 24;
-  let saleAmount = totalBags * (livePrice / specCase);
-  return { saleAmount };
-}
+// 核心解密函数：从备注字符串中拆分提取出真正的 销售数、退货数、赠品数
+function parseRemarkFields(remarkStr, dbQty) {
+  let returnQty = 0;
+  let returnHandle = 'RESTORE';
+  let giftQty = 0;
 
-function parseReturnHandleText(val) {
-  if (!val || typeof val !== 'string' || !val.includes('_')) {
-    return { qty: 0, handle: 'RESTORE' };
+  if (remarkStr && typeof remarkStr === 'string') {
+    const parts = remarkStr.split('_');
+    if (parts.length >= 1) returnQty = parseInt(parts[0]) || 0;
+    if (parts.length >= 2) returnHandle = parts[1] || 'RESTORE';
+    
+    const giftPart = parts.find(p => p.startsWith('GIFT:'));
+    if (giftPart) {
+      giftQty = parseInt(giftPart.split(':')[1]) || 0;
+    }
   }
-  const parts = val.split('_');
-  return { qty: parseInt(parts[0]) || 0, handle: parts[1] || 'RESTORE' };
+
+  // 核心逆推公式：前端界面展示的正常销售数 = dbQty - 赠品数 + (如果是良退 ? 退货数 : 0)
+  let normalSaleBags = dbQty - giftQty;
+  if (returnHandle === 'RESTORE') {
+    normalSaleBags += returnQty;
+  }
+
+  return {
+    normalSaleBags: Math.max(0, normalSaleBags),
+    returnQty,
+    returnHandle,
+    giftQty
+  };
 }
 
 async function init(){
@@ -238,7 +255,7 @@ function renderStores(){
           <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
             <div class="item-main-row">
               <div>
-                <strong style="font-size:16px;color:var(--primary);">${s.store_name} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:10px;">新门店</span>' : ''}</strong>
+                <strong style="font-size:16px;color:var(--primary);">${s.store_name} ${isTemp ? '<span style="font-size:11px;background:#fff1f0;color:#ff4d4f;padding:2px 6px;border-radius:12px;">新门店</span>' : ''}</strong>
                 <div class='sub'>${s.atom_code}</div>
               </div>
             </div>
@@ -541,8 +558,8 @@ async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
     </div>
     ${items.map(it => {
       const p = products.find(x => x.id == it.barcode) || { pcs_per_case: 24, pcs_per_box: 0 };
-      const parsedReturn = parseReturnHandleText(it.remark);
-      const formattedQty = formatQtyToUnits(Number(it.qty || 0), p.pcs_per_case, p.pcs_per_box);
+      const parsed = parseRemarkFields(it.remark, Number(it.qty || 0));
+      const formattedQty = formatQtyToUnits(parsed.normalSaleBags, p.pcs_per_case, p.pcs_per_box);
 
       return `
         <div class='item'>
@@ -558,7 +575,7 @@ async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
               <span>单箱价格: <strong>${Number(it.unit_price || 0).toFixed(2)}元</strong></span>
             </div>
             <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>搭送赠品: <span style="color:#1890ff; font-weight:bold;">${it.gift_qty || 0}</span> 袋 | 售后退回: <span style="color:red; font-weight:bold;">${parsedReturn.qty || 0}</span> 个</span>
+              <span>搭送赠品: <span style="color:#1890ff; font-weight:bold;">${parsed.giftQty || 0}</span> 袋 | 售后退货: <span style="color:red; font-weight:bold;">${parsed.returnQty || 0}</span> 个 (${parsed.returnHandle === 'RESTORE' ? '良退' : '损耗'})</span>
             </div>
           </div>
         </div>`;
@@ -566,12 +583,12 @@ async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
   `;
 }
 
+// 删除订单同样做全回滚联动
 async function deleteExistingOrder(orderNo, rawItemsEncoded) {
   if (!confirm("确定要彻底销毁本笔账单记录并回滚车存数量吗？")) return;
 
   const listEl = document.getElementById('list');
-  const isFromReport = listEl.getAttribute('data-from-report') === 'true';
-  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在撤销单据并返还车存...</div>';
+  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在撤销单据并安全返还车存...</div>';
 
   try {
     const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
@@ -580,17 +597,9 @@ async function deleteExistingOrder(orderNo, rawItemsEncoded) {
 
     const stockUpdates = [];
     items.forEach(it => {
-      const parsedReturn = parseReturnHandleText(it.remark);
-      const saleBags = Number(it.qty || 0); 
-      const giftBags = Number(it.gift_qty || 0);
-      const returnBags = Number(parsedReturn.qty || 0);
-
-      let oldNetImpact = saleBags + giftBags;
-      if (parsedReturn.handle === 'RESTORE') {
-        oldNetImpact -= returnBags;
-      }
-
-      const restoredStock = Number(liveStockMap[it.barcode] || 0) + oldNetImpact;
+      // 销毁单据时，车存应当直接「加回」当时这行记录对车存造成的净扣减基数（即 db 的 qty 列）
+      const oldDbQty = Number(it.qty || 0); 
+      const restoredStock = Number(liveStockMap[it.barcode] || 0) + oldDbQty;
       stockUpdates.push({
         employee_code: currentEmployee.code,
         product_barcode: it.barcode,
@@ -605,15 +614,11 @@ async function deleteExistingOrder(orderNo, rawItemsEncoded) {
       await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
     }
 
-    if (isFromReport) {
-      openSaleReport(selectedReportDate);
-    } else {
-      openStoreHistory(currentStore.atom, currentStore.name);
-    }
+    openSaleReport(selectedReportDate);
   } catch (err) {
     console.error(err);
     alert("❌ 销毁失败，请重试");
-    openStoreHistory(currentStore.atom, currentStore.name);
+    openSaleReport(selectedReportDate);
   }
 }
 
@@ -624,29 +629,26 @@ async function openSaleReport(targetDate) {
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide');
 
-  // 🌟 核心改动：如果不传 targetDate 且全局变量 selectedReportDate 也为空，则代表首次进入，不默认请求数据
-  if(!targetDate && !selectedReportDate) {
-    renderReportDefaultHtml();
-    return;
-  }
-
-  // 接收选择器传递进来的新日期值
-  if(targetDate) {
-    selectedReportDate = targetDate;
-  }
+  selectedReportDate = targetDate; 
   
-  const queryDate = selectedReportDate;
-  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在统计 ${queryDate} 数据...</div>`;
+  const loadingTxt = selectedReportDate ? `正在统计 ${selectedReportDate} 数据...` : "正在拉取全量卖进历史数据...";
+  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">⏳ ${loadingTxt}</div>`;
 
   try {
-    const { data: dayOrders } = await client.from('sales_orders')
+    let query = client.from('sales_orders')
       .select('*')
       .eq('employee_code', currentEmployee.code)
-      .gte('created_at', `${queryDate}T00:00:00`)
-      .lte('created_at', `${queryDate}T23:59:59`);
+      .order('created_at', { ascending: false }); 
+
+    if(selectedReportDate) {
+      query = query.gte('created_at', `${selectedReportDate}T00:00:00`)
+                   .lte('created_at', `${selectedReportDate}T23:59:59`);
+    }
+
+    const { data: dayOrders } = await query;
 
     if(!dayOrders || dayOrders.length === 0) {
-      renderReportHtml(queryDate, 0, 0, []);
+      renderReportHtml(selectedReportDate, 0, []);
       return;
     }
 
@@ -654,13 +656,14 @@ async function openSaleReport(targetDate) {
     const { data: dayItems } = await client.from('sales_order_items').select('*').in('order_no', oNos);
     const itemsList = dayItems || [];
 
-    let dayTotalSale = 0; let totalGiftPcs = 0;
+    let dayTotalSale = 0; 
     const orderSummaryMap = {};
 
     dayOrders.forEach(o => {
+      const displayDate = o.created_at ? o.created_at.split('T')[0] : '未知';
       orderSummaryMap[o.order_no] = {
         orderNo: o.order_no,
-        orderDate: queryDate,
+        orderDate: displayDate,
         atomCode: o.atom_code,
         storeName: o.store_name || `未知门店(${o.atom_code})`,
         netRevenue: 0,
@@ -670,8 +673,6 @@ async function openSaleReport(targetDate) {
 
     itemsList.forEach(it => {
       dayTotalSale += Number(it.amount || 0);
-      totalGiftPcs += Number(it.gift_qty || 0); 
-
       if(orderSummaryMap[it.order_no]) {
         const targetOrder = orderSummaryMap[it.order_no];
         targetOrder.netRevenue += Number(it.amount || 0);
@@ -679,71 +680,50 @@ async function openSaleReport(targetDate) {
       }
     });
 
-    renderReportHtml(queryDate, dayTotalSale, totalGiftPcs, Object.values(orderSummaryMap));
+    renderReportHtml(selectedReportDate, dayTotalSale, Object.values(orderSummaryMap));
   } catch(e) {
-    console.error(e);
-    alert("❌ 加载报表数据失败，请重试");
-    renderReportDefaultHtml();
+    console.error("报表加载致命错误:", e);
+    document.getElementById('list').innerHTML = `<div style="color:red;padding:20px;">❌ 加载报表数据失败: ${e.message}</div>`;
   }
 }
 
-// 🌟 首次进入报表，提示手动点选日期的占位渲染
-function renderReportDefaultHtml() {
-  selectedReportDate = ""; // 清空老日期
-  document.getElementById('list').innerHTML = `
-    <div class="big-store-title">📈 卖进数据</div>
-    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:14px;'>业务员：${currentEmployee.name}</div>
-    
-    <div style='margin-bottom:20px; font-size:14px;'>📅 报表日期：
-      <div class="date-picker-wrapper">
-        <button class='smallbtn' style="border-color:var(--primary); color:var(--primary); font-weight:bold; padding: 8px 16px;">请点击选择日期 🗓️</button>
-        <input type="date" class="real-date-input" value="" onchange="openSaleReport(this.value)">
-      </div>
-    </div>
-
-    <div class="sub" style="text-align:center; padding:50px; color:#999; background:#faf9fa; border-radius:12px; border:1px dashed #dcd6dd; margin-top:20px;">
-      💡 请在上方点击选择指定日期查看卖进统计数据
-    </div>
-  `;
-}
-
-function renderReportHtml(dateStr, netSum, totalGift, rows) {
+function renderReportHtml(dateStr, netSum, rows) {
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">📈 卖进数据</div>
     <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:10px;'>业务员：${currentEmployee.name}</div>
     
-    <div style='margin-bottom:14px; font-size:14px;'>📅 报表日期：
+    <div style='margin-bottom:14px; font-size:14px; display:flex; align-items:center; gap:8px;'>
+      <span>🗓️ 日期筛选：</span>
       <div class="date-picker-wrapper">
-        <button class='smallbtn' style="border-color:var(--primary); color:var(--primary); font-weight:bold;">${dateStr} 🔄</button>
-        <input type="date" class="real-date-input" value="${dateStr}" onchange="openSaleReport(this.value)">
+        <button class='smallbtn' style="border-color:var(--primary); color:var(--primary); font-weight:bold;">
+          ${dateStr ? dateStr + ' 🔄' : '查看全部历史 🗓️'}
+        </button>
+        <input type="date" class="real-date-input" value="${dateStr || ''}" onchange="openSaleReport(this.value)">
       </div>
+      ${dateStr ? `<button class="smallbtn" style="color:#756676;" onclick="openSaleReport('')">清除筛选</button>` : ''}
     </div>
 
     <div class="amount-summary-banner" style="line-height:1.6; background:#fbf8fc;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日总实收：${netSum.toFixed(2)} 元</strong></span><br>
-      <div style="display:flex; gap:20px; font-size:13px; margin-top:2px; color:var(--text-muted);">
-        <span>🎁 累计赠送货量：<strong style="color:#1890ff;">${totalGift}</strong> 袋</span>
-      </div>
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>${dateStr ? '当日' : '选定范围内'}总实收：${netSum.toFixed(2)} 元</strong></span>
     </div>
 
-    ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">⚠️ 该日期下没有生成过任何客户账单</div>` : 
+    ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:40px; color:#aaa;">⚠️ 没有任何符合条件的客户账单记录</div>` : 
       rows.map(r => `
         <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
              onclick="triggerReportDetailView('${r.atomCode}', '${r.storeName}', '${r.orderNo}', '${r.orderDate}')">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
             <strong style="font-size:15px; color:var(--primary);">${r.storeName}</strong>
-            <span style="color:var(--text-muted); font-size:13px;">编辑账单 ✏️</span>
+            <span style="color:var(--text-muted); font-size:12px; background:#f4f2f5; padding:2px 6px; border-radius:4px;">${r.orderDate}</span>
           </div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top:4px;">
-            <span>品项: ${r.skuCount} 种</span><br>
-            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 应收金额：${r.netRevenue.toFixed(2)} 元</span>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top:6px; display:flex; justify-content:space-between; width:100%;">
+            <span>品项: <strong>${r.skuCount}</strong> 种</span>
+            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 实收：${r.netRevenue.toFixed(2)} 元</span>
           </div>
         </div>
       `).join('')}
   `;
 }
 
-// 🌟 解决卡死的安全跳转器：在这里动态组装临时客户主体，斩断对全局 currentStore 的强依赖风险
 function triggerReportDetailView(atomCode, storeName, orderNo, orderDate) {
   currentStore = { atom: atomCode, name: storeName };
   viewOrderDetail(orderNo, orderDate, true);
@@ -764,17 +744,18 @@ function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, a
   
   if(orderNo) {
     const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
-    orderData = { order_no: orderNo, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
+    orderData = { order_no: orderNo, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldDbItemsMap: {} };
     
     products.forEach(p => {
       orderData.items[p.id] = { cases: 0, boxes: 0, pcs: 0, price: p.default_price || 15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
     });
 
     items.forEach(it => {
-      const parsedReturn = parseReturnHandleText(it.remark);
       const pObj = products.find(x => x.id == it.barcode) || { pcs_per_case: 24, pcs_per_box: 0 };
+      const parsed = parseRemarkFields(it.remark, Number(it.qty || 0));
       
-      let totBags = Number(it.qty || 0); 
+      // 还原正常销售输入的数量选择器值
+      let totBags = parsed.normalSaleBags; 
       let curC = Math.floor(totBags / pObj.pcs_per_case);
       let rem = totBags % pObj.pcs_per_case;
       let curB = pObj.pcs_per_box > 0 ? Math.floor(rem / pObj.pcs_per_box) : 0;
@@ -782,22 +763,20 @@ function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, a
 
       orderData.items[it.barcode] = { 
         cases: curC, boxes: curB, pcs: curP,
-        price: Number(it.unit_price || 0), gift_qty: Number(it.gift_qty || 0),
-        return_qty: Number(parsedReturn.qty || 0), return_handle: parsedReturn.handle,
-        showPanel: Number(parsedReturn.qty || 0) > 0 || Number(it.gift_qty || 0) > 0
+        price: Number(it.unit_price || 0), 
+        gift_qty: parsed.giftQty, 
+        return_qty: parsed.returnQty, 
+        return_handle: parsed.returnHandle,
+        showPanel: parsed.returnQty > 0 || parsed.giftQty > 0
       };
       
-      let saleBags = totBags;
-      let giftBags = Number(it.gift_qty || 0);
-      let returnBags = Number(parsedReturn.qty || 0);
-      let oldNet = saleBags + giftBags;
-      if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
-      orderData.oldItemsMap[it.barcode] = oldNet; 
+      // 记录这张单据在数据库中原本已经吃掉的旧库存数值（直接等于原始数据库 qty 列）
+      orderData.oldDbItemsMap[it.barcode] = Number(it.qty || 0); 
     });
   } else {
     const d = new Date(); 
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
+    orderData = { atom, name, date: today, items: {}, oldDbItemsMap: {} }; 
     
     products.forEach(p => {
       orderData.items[p.id] = { cases: 0, boxes: 0, pcs: 0, price: p.default_price || 15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
@@ -820,12 +799,18 @@ function calculateLiveOrderAmounts() {
   products.forEach(p => {
     const item = orderData.items[p.id];
     if(item) {
-      let totBags = (item.cases * p.pcs_per_case) + (item.boxes * p.pcs_per_box) + item.pcs;
-      if(totBags > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
+      let normalSaleBags = (item.cases * p.pcs_per_case) + (item.boxes * p.pcs_per_box) + item.pcs;
+      if(normalSaleBags > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
         activeSKUCount++;
       }
-      const rowRes = getLiveRowAmounts(p, totBags, Number(item.price || 0));
-      s += rowRes.saleAmount; 
+      
+      // 金额计算公式：(正常销售数 - 退良品数 - 退报废数) * (单价 / 箱规格)
+      const returnBags = Number(item.return_qty || 0);
+      let chargedBags = normalSaleBags - returnBags; 
+      if (chargedBags < 0) chargedBags = 0; 
+
+      let rowAmount = chargedBags * (Number(item.price || 0) / p.pcs_per_case);
+      s += rowAmount; 
     }
   });
 
@@ -850,7 +835,6 @@ function renderOrder(){
     ${displayProducts.map(p => {
       const defaultPriceVal = p.default_price || 15;
       const specBox = p.pcs_per_box || 0; 
-      
       const itData = orderData.items[p.id];
       
       return `
@@ -964,8 +948,8 @@ async function submitOrder(){
   Object.keys(orderData.items).forEach(id => {
     const it = orderData.items[id];
     const p = products.find(x => x.id == id) || { pcs_per_case: 24, pcs_per_box: 0 };
-    let totBags = (Number(it.cases || 0) * p.pcs_per_case) + (Number(it.boxes || 0) * p.pcs_per_box) + Number(it.pcs || 0);
-    grandTotalQty += totBags + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
+    let nQty = (Number(it.cases || 0) * p.pcs_per_case) + (Number(it.boxes || 0) * p.pcs_per_box) + Number(it.pcs || 0);
+    grandTotalQty += nQty + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
   });
 
   if (grandTotalQty === 0) {
@@ -974,112 +958,107 @@ async function submitOrder(){
   }
 
   const submitBtn = document.querySelector('.float-submit');
-  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在提交到云端...'; }
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在通过原子事务保存...'; }
 
   try {
     let finalOrderNo = orderData.order_no;
 
+    // 1. 如果是临时建的新店，先写入门店表
     if (isNewStoreFlow && !finalOrderNo) {
       await client.from('employee_store_assets').insert({
         employee_code: String(currentEmployee.code),
         atom_code: String(orderData.atom),
         store_name: String(orderData.name)
       });
-
       stores.push({ atom_code: orderData.atom, store_name: orderData.name });
       stores.sort((a, b) => a.store_name.localeCompare(b.store_name, 'zh-CN'));
       isNewStoreFlow = false; 
     }
 
+    // 2. 拉取当前最新实时车存映射表
     const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
-    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
+    const liveStockMap = {}; 
+    (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
 
-    const stockUpdates = []; let isStockDeficit = false; 
-    const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
+    const stockUpdatesPayload = []; 
+    const formattedItemsPayload = [];
+    let totalBillAmount = 0;
+
+    const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldDbItemsMap || {})]);
 
     for (let id of allProdIds) {
-      const p = products.find(x => x.id == id) || { pcs_per_case: 24, pcs_per_box: 0 };
-      const item = orderData.items[id] || { cases: 0, boxes: 0, pcs: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
-      const oldNetImpact = Number(orderData.oldItemsMap?.[id] || 0); 
+      const p = products.find(x => x.id == id);
+      if(!p) continue;
       
-      let saleBags = (Number(item.cases || 0) * p.pcs_per_case) + (Number(item.boxes || 0) * p.pcs_per_box) + Number(item.pcs || 0);
+      const item = orderData.items[id] || { cases: 0, boxes: 0, pcs: 0, price: p.default_price||15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
+      const oldDbQty = Number(orderData.oldDbItemsMap?.[id] || 0); 
+      
+      let normalSaleBags = (Number(item.cases || 0) * p.pcs_per_case) + (Number(item.boxes || 0) * p.pcs_per_box) + Number(item.pcs || 0);
       const giftBags = Number(item.gift_qty || 0);
       const returnBags = Number(item.return_qty || 0);
 
-      let currentNetImpact = saleBags + giftBags; 
-      if (item.return_handle === 'RESTORE') currentNetImpact -= returnBags; 
+      // 计算系统底层转换后的虚拟销售数列公式：qty = 销售数 + 赠品数 - (如果是良退 ? 退货数 : 0)
+      let calculatedDbQty = normalSaleBags + giftBags;
+      if (item.return_handle === 'RESTORE') {
+        calculatedDbQty -= returnBags;
+      }
 
-      const delta = currentNetImpact - oldNetImpact; 
-      const finalNewStock = Number(liveStockMap[id] || 0) - delta;
+      // 联动计算对该口味库存带来的最终车存余量变化结果
+      const delta = calculatedDbQty - oldDbQty; 
+      const finalStockQty = Number(liveStockMap[id] || 0) - delta;
 
-      if (finalNewStock < 0) isStockDeficit = true;
-      if (delta !== 0 || saleBags > 0 || returnBags > 0 || giftBags > 0) {
-        stockUpdates.push({ employee_code: String(currentEmployee.code), product_barcode: String(id), qty: Number(finalNewStock) });
+      // 如果有产生实质性的数据变更或存在数据，打包进 payload
+      if (delta !== 0 || normalSaleBags > 0 || returnBags > 0 || giftBags > 0) {
+        stockUpdatesPayload.push({ product_barcode: String(id), qty: Number(finalStockQty) });
+      }
+
+      if(normalSaleBags > 0 || giftBags > 0 || returnBags > 0) {
+        // 金额计算公式：(正常销售数 - 退货数) * 转换成散袋的单价
+        let chargedBags = normalSaleBags - returnBags;
+        if (chargedBags < 0) chargedBags = 0;
+        
+        let itemAmount = chargedBags * (Number(item.price || 0) / p.pcs_per_case);
+        totalBillAmount += itemAmount;
+
+        const remarkString = `${returnBags}_${item.return_handle || 'RESTORE'}_GIFT:${giftBags}`;
+
+        formattedItemsPayload.push({
+          barcode: String(id),
+          product_name: String(p.product_name),
+          qty: Number(calculatedDbQty), // 写入转换后的销售数，完美控制车存基数
+          unit_price: Number(item.price || 0),
+          amount: Number(itemAmount.toFixed(2)),
+          remark: remarkString
+        });
       }
     }
 
-    let totalBillAmount = 0;
-    const formattedItems = [];
-    
-    Object.keys(orderData.items).forEach(id => { 
-      const it = orderData.items[id]; 
-      const p = products.find(x => x.id == id);
-      if(!p) return;
+    if (!finalOrderNo) {
+      finalOrderNo = 'SO' + Date.now() + Math.floor(Math.random() * 1000);
+    }
 
-      let saleBags = (Number(it.cases || 0) * p.pcs_per_case) + (Number(it.boxes || 0) * p.pcs_per_box) + Number(it.pcs || 0);
-      const giftBags = Number(it.gift_qty || 0);
-      const returnBags = Number(it.return_qty || 0);
-
-      if(saleBags > 0 || giftBags > 0 || returnBags > 0){ 
-        const remarkString = `${returnBags}_${it.return_handle || 'RESTORE'}`;
-        const rowRes = getLiveRowAmounts(p, saleBags, Number(it.price || 0));
-        
-        const itemAmount = Number(rowRes.saleAmount || 0);
-        totalBillAmount += itemAmount;
-
-        formattedItems.push({ 
-          barcode: String(id), 
-          product_name: String(p.product_name),
-          qty: Number(saleBags), 
-          unit_price: Number(it.price || 0), 
-          gift_qty: Number(giftBags), 
-          amount: Number(itemAmount.toFixed(2)),
-          remark: remarkString 
-        }); 
-      } 
+    // 🌟 史诗级修正：拒绝前端分步提交，全量打包通过一条 RPC 请求送交后台事务执行
+    const { data: rpcResult, error: rpcError } = await client.rpc('submit_sales_order_v2', {
+      p_order_no: String(finalOrderNo),
+      p_employee_code: String(currentEmployee.code),
+      p_atom_code: String(orderData.atom),
+      p_store_name: String(orderData.name),
+      p_total_amount: Number(totalBillAmount.toFixed(2)),
+      p_items: formattedItemsPayload,
+      p_stock_updates: stockUpdatesPayload
     });
 
-    if (finalOrderNo) {
-      await client.from('sales_orders').update({ total_amount: Number(totalBillAmount.toFixed(2)) }).eq('order_no', finalOrderNo);
-      await client.from('sales_order_items').delete().eq('order_no', finalOrderNo);
-      formattedItems.forEach(fit => fit.order_no = String(finalOrderNo));
-    } else {
-      finalOrderNo = 'SO' + Date.now() + Math.floor(Math.random() * 1000);
-      await client.from('sales_orders').insert({ 
-        order_no: String(finalOrderNo),
-        employee_code: String(currentEmployee.code), 
-        atom_code: String(orderData.atom), 
-        store_name: String(orderData.name),
-        total_amount: Number(totalBillAmount.toFixed(2)),
-        status: 'SUCCESS'
-      });
-      formattedItems.forEach(fit => fit.order_no = String(finalOrderNo));
+    if (rpcError) {
+      throw new Error(rpcError.message);
     }
 
-    if (formattedItems.length > 0) {
-      const { error: itemsError } = await client.from('sales_order_items').insert(formattedItems);
-      if (itemsError) throw new Error(`明细写入失败: ${itemsError.message}`);
-    }
-
-    if (stockUpdates.length > 0) await client.from('van_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_barcode' });
-    if (isStockDeficit) alert('⚠️ 账单保存成功！但该业务员车上部分口味存货出现负值，请注意及时补货。');
-    
     orderData = null; 
     openStoreHistory(currentStore.atom, currentStore.name);
 
   } catch (err) {
-    console.error("提交异常：", err);
-    alert(`❌ 账单提交失败: ${err.message || '网络或约束错误'}，请重试！`);
+    console.error("提交原子异常：", err);
+    // 如果后台抛出异常，整个数据库回滚，此时弹窗提示，库存绝对完好如初！
+    alert(`❌ 账单保存被拦截: ${err.message || '网络或事务错误'}，请重试！`);
     if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
   }
 }
@@ -1087,7 +1066,7 @@ async function submitOrder(){
 function goBack(){
   if(STATE === 'STOCK' || STATE === 'REPORT' || STATE === 'NEW_STORE_MGT') {
     orderData = null;
-    selectedReportDate = ""; // 返回时清空选择的报表日期
+    selectedReportDate = ""; 
     renderStores(); 
   }
   else if(STATE === 'DETAIL') {
