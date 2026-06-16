@@ -1,12 +1,11 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8" /><title>开单+库存</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><style>:root {
   --primary: #4A154B;        
-  --primary-hover: #360f37; 
-  --accent: #ffb81c;        
+  --primary-hover: #360f37; \n  --accent: #ffb81c;        
   --bg-main: #f4f2f5;       
   --text-main: #1f1121;     
   --text-muted: #756676;    
   --card-bg: #ffffff;       
-}body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}.top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }.back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }.back-btn:active { background: #e2dde3; transform: scale(0.97); }.back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }.editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }#list { width: 100%; }.big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }.emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }.emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }.emp-card:active { background: #f3e2f5; transform: scale(0.97); }.store-container { padding-right: 24px; box-sizing: border-box; }.letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }.item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.prod-info { flex: 1; min-width: 0; }.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }.ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }.ios-picker:focus { border-color: var(--primary); background: #fff; }.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }.aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }.store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }.btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }.btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }.btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }.btn-gate-newstore { background: linear-gradient(135deg, #ff9c6e, #ff4d4f); }.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }.date-picker-wrapper { position: relative; display: inline-block; }.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }.search-clear-btn:active { background: #d0c9d2; }.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }.spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }.spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }.spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }.brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }.sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }.hide { display:none !important; }.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }.stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }.stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }.alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }.amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }.amount-summary-banner strong { font-size: 15px; }.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }</style></head><body>
+}body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}.top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }.back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }.back-btn:active { background: #e2dde3; transform: scale(0.97); }.back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }#list { width: 100%; }.big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }.emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }.emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }.emp-card:active { background: #f3e2f5; transform: scale(0.97); }.store-container { padding-right: 24px; box-sizing: border-box; }.letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }.item-main-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-direction: column; }.prod-info { width: 100%; min-width: 0; }.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.control-group { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 8px; flex-wrap: wrap; }.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }.ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 44px; }.ios-picker:focus { border-color: var(--primary); background: #fff; }.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }.aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }.store-top-gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }.btn-gate-half { color: #fff; padding: 12px 4px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }.btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }.btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }.btn-gate-newstore { background: linear-gradient(135deg, #ff9c6e, #ff4d4f); }.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }.date-picker-wrapper { position: relative; display: inline-block; }.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }.search-clear-btn:active { background: #d0c9d2; }.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }.spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }.spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }.spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }.brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }.sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }.hide { display:none !important; }.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }.stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }.stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }.alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }.amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }.amount-summary-banner strong { font-size: 15px; }.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }</style></head><body>
 
 <div class="card">
   <div id="searchBlock" class="search-wrapper">
@@ -16,7 +15,6 @@
 
   <div class="top-action-bar">
     <div id="back" class="back-btn hide" onclick="goBack()">返回</div>
-    <div id="editStateBadge" class="editing-badge hide">正在修改历史单据</div>
   </div>
 
   <div id="list"></div>
@@ -44,11 +42,6 @@ let stockData = {};
 let selectedReportDate = ""; 
 let isNewStoreFlow = false; 
 
-function isSpecialSpecOreo(productObj) {
-  if (!productObj || !productObj.spec) return false;
-  return productObj.spec.includes("3片装");
-}
-
 function formatQtyToUnits(totalPcs, specCase, specBox) {
   let displayCases = Math.floor(totalPcs / specCase);
   let remPcs = totalPcs % specCase;
@@ -62,36 +55,11 @@ function formatQtyToUnits(totalPcs, specCase, specBox) {
   }
 }
 
-function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
-  let saleAmount = 0; 
-  let giftAmount = 0; 
-  let restoreAmount = 0; 
-  let scrapAmount = 0;    
-
-  const isOreo = isSpecialSpecOreo(productObj);
-  const defaultPrice = productObj.default_price || 15;
-  const specBox = productObj.pcs_per_box || 0;
-
-  if (isOreo) {
-    saleAmount = qty * livePrice;
-    const liveSingleBagPrice = livePrice / (specBox || 6);
-    const defaultSingleBagPrice = defaultPrice / (specBox || 6);
-    giftAmount = giftQty * defaultSingleBagPrice; 
-    if (returnHandle === 'SCRAP') {
-      scrapAmount = returnQty * liveSingleBagPrice; 
-    } else {
-      restoreAmount = returnQty * liveSingleBagPrice; 
-    }
-  } else {
-    saleAmount = qty * livePrice;
-    giftAmount = giftQty * defaultPrice; 
-    if (returnHandle === 'SCRAP') {
-      scrapAmount = returnQty * livePrice;
-    } else {
-      restoreAmount = returnQty * livePrice;
-    }
-  }
-  return { saleAmount, giftAmount, restoreAmount, scrapAmount };
+function getLiveRowAmounts(productObj, totalBags, livePrice) {
+  const specCase = productObj.pcs_per_case || 24;
+  // 销售额 = 底层最小单位总数 * (单件价格 / 每箱最小件数)
+  let saleAmount = totalBags * (livePrice / specCase);
+  return { saleAmount };
 }
 
 function parseReturnHandleText(val) {
@@ -104,7 +72,7 @@ function parseReturnHandleText(val) {
 
 async function init(){
   try {
-    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载新版商品目录...</div>';
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载员工列表...</div>';
     
     const e = await client.from('employees').select('employee_code, name').eq('is_active', true);
     const p = await client.from('products').select('*').eq('is_active', true);
@@ -114,7 +82,6 @@ async function init(){
       employee_name: x.name 
     }));
 
-    // 【新表条码映射】使用新表的 barcode 映射给前端唯一 id，将 flavor 映射给展示层名称
     products = (p.data || []).map(x => ({ 
       ...x, 
       id: x.barcode,             
@@ -158,7 +125,6 @@ function renderEmployees(){
   STATE = 'EMP';
   orderData = null; 
   document.getElementById('back').classList.add('hide');
-  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
@@ -183,14 +149,12 @@ function renderEmployees(){
   `;
 }
 
-// 【彻底重构】使用新表 employee_store_assets 直接拉取门店编码与名称，移除旧 stores_dim 依赖
 async function openEmployee(code, name){
   autoResetSearchState();
   STATE = 'STORE';
   orderData = null; 
   currentEmployee = {code, name};
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载对应门店...</div>';
 
@@ -227,7 +191,6 @@ function renderStores(){
   STATE = 'STORE';
   orderData = null; 
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('search').placeholder = "🔍 输入门店名称或编码搜索店铺...";
 
@@ -297,7 +260,6 @@ function openNewStoreManagement() {
   STATE = 'NEW_STORE_MGT';
   orderData = null;
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('alphabetSidebar').classList.add('hide');
   document.getElementById('searchBlock').classList.add('hide');
 
@@ -345,12 +307,10 @@ function triggerCreateNewStore() {
   templateEditOrNew(null, null, null, tempAtomCode, storeName.trim());
 }
 
-// 【新表适配】车存对接 van_stocks表 (product_barcode)
 async function openStockManagement(){
   STATE = 'STOCK';
   orderData = null; 
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
   document.getElementById('searchBlock').classList.add('hide'); 
@@ -388,7 +348,6 @@ function generateFilterHeaderHtml() {
     <div class='spec-nav'>
       ${availableSpecs.map(sp => `<div class="spec-badge ${currentSelectedSpec === sp ? 'active' : ''}" onclick="selectSpec('${sp}')">${sp}</div>`).join('')}
     </div>
-    <div class='brand'>📂 联动定位：${currentSelectedBrand || '未选择'} ➔ ${currentSelectedSpec}</div>
   `;
 }
 
@@ -412,14 +371,14 @@ function makePureQtyOptionsHtml(max, current) {
   return html;
 }
 
-function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
+function makePurePriceOptionsHtml(centerPrice, currentSelected) {
   let html = '';
-  let start = Math.max(0.1, centerPrice - 15);
+  let start = Math.max(0.05, centerPrice - 15);
   let end = centerPrice + 30;
-  let step = 0.1; 
+  let step = 0.05; 
   for (let p = start; p <= end; p += step) {
-    let val = +p.toFixed(1);
-    html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.005 ? 'selected' : ''}>${val.toFixed(1)}</option>`;
+    let val = +p.toFixed(2);
+    html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.015 ? 'selected' : ''}>${val.toFixed(2)}</option>`;
   }
   return html;
 }
@@ -471,7 +430,7 @@ function renderStockPage(){
         </div>
       `;
     }).join('')}
-    <button class='float-submit' onclick='submitStock()'>💾 更新车存</button>
+    <button class='float-submit' onclick='submitStock()'>💾 更新库存</button>
   `;
 }
 
@@ -481,7 +440,6 @@ function updateStockInput(prodId, type, val){
   else stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
-// 【新表适配】更新车存：对接 van_stocks 表
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false; const updates = []; 
@@ -509,16 +467,13 @@ async function submitStock(){
   openStockManagement();
 }
 
-// 【新表适配】查询历史订单：对接 sales_orders
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
   document.getElementById('back').classList.remove('hide'); 
-  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据流...</div>';
   
-  // 新表按创建时间 created_at 或订单编号 order_no 分类。这里按 created_at 降序。
   const { data: ordersData } = await client.from('sales_orders').select('*').eq('atom_code', atom).order('created_at', { ascending: false });
   historyOrders = ordersData || []; 
 
@@ -528,24 +483,13 @@ async function openStoreHistory(atom, name) {
     const allItems = itemsData || [];
 
     historyOrders.forEach(o => {
-      let sSum = 0; let gSum = 0; let resSum = 0; let scrSum = 0;
+      let sSum = 0;
       const oItems = allItems.filter(it => it.order_no === o.order_no);
       oItems.forEach(it => {
-        const pObj = products.find(x => x.id == it.barcode);
-        if(!pObj) return;
-        const parsedReturn = parseReturnHandleText(it.remark); // remark 承载售后退货数据
-        const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-        sSum += rowRes.saleAmount; 
-        gSum += rowRes.giftAmount; 
-        resSum += rowRes.restoreAmount; 
-        scrSum += rowRes.scrapAmount;
+        sSum += Number(it.amount || 0);
       });
       o.skuCount = oItems.length;
       o.saleSum = sSum; 
-      o.giftSum = gSum; 
-      o.restoreSum = resSum; 
-      o.scrapSum = scrSum;
-      o.netRevenue = sSum - scrSum; 
     });
   }
   renderHistory();
@@ -553,7 +497,6 @@ async function openStoreHistory(atom, name) {
 
 function renderHistory(){
   STATE = 'HISTORY';
-  document.getElementById('editStateBadge').classList.add('hide'); 
   const isTemp = String(currentStore.atom).startsWith('NEW_');
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name} ${isTemp ? '<span style="font-size:12px;background:#fff1f0;color:#ff4d4f;padding:2px 8px;border-radius:12px;vertical-align:middle;">新门店</span>' : ''}</div>
@@ -563,77 +506,59 @@ function renderHistory(){
         return `
         <div class="history-item" onclick="viewOrderDetail('${o.order_no}', '${bDate}', false)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:14px; font-weight:700; color:var(--text-muted);">单号: ${o.order_no}</span>
+            <span style="color:var(--primary); font-size:14px; font-weight:bold;">💵 实收：${(o.saleSum||0).toFixed(2)} 元</span>
             <span style="color:var(--primary); font-size:14px;">详情 →</span>
           </div>
           <div style="font-size: 13px; color: var(--text-muted); line-height:1.45; margin-top:4px;">
-            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实收：${(o.netRevenue||0).toFixed(1)} 元</span><br>
-            品项数: ${o.skuCount || 0} 款 | 日期: ${bDate}<br>
-            销售额: ${(o.saleSum||0).toFixed(1)} 元 | 🔴 过期扣减: ${(o.scrapSum||0).toFixed(1)} 元
+            品项数: ${o.skuCount || 0} 款 | 日期: ${bDate}
           </div>
         </div>
       `}).join('')}
   `;
 }
 
-// 【新表适配】查看明细：对接 sales_order_items
 async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
   STATE = 'DETAIL'; 
   document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
-  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载单据明细...</div>';
   
   const { data: items } = await client.from('sales_order_items').select('*').eq('order_no', orderNo);
-  
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
-  let detailSaleSum = 0; let detailGiftSum = 0; let detailRestoreSum = 0; let detailScrapSum = 0;
+  let detailSaleSum = 0;
 
   items.forEach(it => {
-    const pObj = products.find(x => x.id == it.barcode);
-    if(!pObj) return;
-    const parsedReturn = parseReturnHandleText(it.remark);
-    const rowRes = getLiveRowAmounts(pObj, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-    detailSaleSum += rowRes.saleAmount; 
-    detailGiftSum += rowRes.giftAmount; 
-    detailRestoreSum += rowRes.restoreAmount; 
-    detailScrapSum += rowRes.scrapAmount;
+    detailSaleSum += Number(it.amount || 0);
   });
   
-  let detailNetRevenue = detailSaleSum - detailScrapSum;
-
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
-    <div style="font-size:12px;color:var(--text-muted);margin:-8px 0 10px 12px;">单号：${orderNo}</div>
     <div class="amount-summary-banner" style="line-height:1.55;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>账单实收：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
-      商品总销售：${detailSaleSum.toFixed(1)} 元 | 🔴 过期收回损耗：${detailScrapSum.toFixed(1)} 元
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>账单实收：${detailSaleSum.toFixed(2)} 元</strong></span>
     </div>
     <div style="display:flex; gap:10px; margin: 10px 0;">
       <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c;" onclick="editExistingOrder('${orderNo}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
       <button class="smallbtn" style="background:#fef0f0; color:#f56c6c; border-color:#fde2e2;" onclick="deleteExistingOrder('${orderNo}', '${rawItemsJSON}')">🗑️ 删除订单</button>
     </div>
     ${items.map(it => {
-      const p = products.find(x => x.id == it.barcode) || { product_name: '未知口味', spec: '常规' };
+      const p = products.find(x => x.id == it.barcode) || { pcs_per_case: 24, pcs_per_box: 0 };
       const parsedReturn = parseReturnHandleText(it.remark);
-      
-      const rowRes = getLiveRowAmounts(p, Number(it.qty || 0), Number(it.unit_price || 0), Number(it.gift_qty || 0), Number(parsedReturn.qty || 0), parsedReturn.handle);
-      const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount;
+      const formattedQty = formatQtyToUnits(Number(it.qty || 0), p.pcs_per_case, p.pcs_per_box);
 
       return `
         <div class='item'>
-          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.product_name}</div>
+          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${it.product_name || '未知商品'}</div>
           <div class="detail-grid-container">
             <div class="detail-grid-item">
-              <span>实收单项: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
+              <span>实收单项: <strong style="color:var(--primary); font-size:14px;">${Number(it.amount || 0).toFixed(2)}元</strong></span>
             </div>
             <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>正常销售: <strong>${it.qty}</strong> 件 × ${Number(it.unit_price).toFixed(1)}元</span>
+              <span>正常销售: <strong>${formattedQty}</strong></span>
             </div>
             <div class="detail-grid-item">
-              <span>搭送赠品: <span style="color:#1890ff; font-weight:bold;">${it.gift_qty || 0}</span> 袋</span>
+              <span>单箱价格: <strong>${Number(it.unit_price || 0).toFixed(2)}元</strong></span>
             </div>
             <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>过期收回: <span style="color:red; font-weight:bold;">${parsedReturn.handle === 'SCRAP' ? parsedReturn.qty : 0}</span> 个</span>
+              <span>搭送赠品: <span style="color:#1890ff; font-weight:bold;">${it.gift_qty || 0}</span> 袋 | 售后退回: <span style="color:red; font-weight:bold;">${parsedReturn.qty || 0}</span> 个</span>
             </div>
           </div>
         </div>`;
@@ -641,7 +566,6 @@ async function viewOrderDetail(orderNo, orderDate, fromReport = false) {
   `;
 }
 
-// 【新表适配】销毁并倒回车存量 (van_stocks)
 async function deleteExistingOrder(orderNo, rawItemsEncoded) {
   if (!confirm("确定要彻底销毁本笔账单记录并回滚车存数量吗？")) return;
 
@@ -651,17 +575,13 @@ async function deleteExistingOrder(orderNo, rawItemsEncoded) {
 
   try {
     const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
-
     const { data: currentStocks } = await client.from('van_stocks').select('*').eq('employee_code', currentEmployee.code);
     const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_barcode] = Number(st.qty) || 0; });
 
     const stockUpdates = [];
     items.forEach(it => {
       const parsedReturn = parseReturnHandleText(it.remark);
-      const pObj = products.find(x => x.id == it.barcode);
-      if (!pObj) return;
-
-      const saleBags = Number(it.qty || 0);
+      const saleBags = Number(it.qty || 0); 
       const giftBags = Number(it.gift_qty || 0);
       const returnBags = Number(parsedReturn.qty || 0);
 
@@ -697,12 +617,10 @@ async function deleteExistingOrder(orderNo, rawItemsEncoded) {
   }
 }
 
-// 【新表适配】日报统计对接：通过 sales_orders 表过滤
 async function openSaleReport(targetDate) {
   STATE = 'REPORT';
   orderData = null;
   document.getElementById('back').classList.remove('hide'); 
-  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide');
 
@@ -711,9 +629,8 @@ async function openSaleReport(targetDate) {
     targetDate = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
   }
   selectedReportDate = targetDate;
-  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在统计日报数据...</div>`;
+  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在统计数据...</div>`;
 
-  // 用 Postgres的 timestamp 前缀匹配日期字符串
   const { data: dayOrders } = await client.from('sales_orders')
     .select('*')
     .eq('employee_code', currentEmployee.code)
@@ -721,7 +638,7 @@ async function openSaleReport(targetDate) {
     .lte('created_at', `${targetDate}T23:59:59`);
 
   if(!dayOrders || dayOrders.length === 0) {
-    renderReportHtml(targetDate, 0, 0, 0, 0, []);
+    renderReportHtml(targetDate, 0, 0, 0, []);
     return;
   }
 
@@ -729,9 +646,7 @@ async function openSaleReport(targetDate) {
   const { data: dayItems } = await client.from('sales_order_items').select('*').in('order_no', oNos);
   const itemsList = dayItems || [];
 
-  let dayTotalSale = 0; let dayTotalGiftAmt = 0; let dayTotalScrapAmt = 0;
-  let totalGiftPcs = 0; let totalScrapPcs = 0;
-  
+  let dayTotalSale = 0; let totalGiftPcs = 0;
   const orderSummaryMap = {};
 
   dayOrders.forEach(o => {
@@ -740,47 +655,28 @@ async function openSaleReport(targetDate) {
       orderDate: targetDate,
       atomCode: o.atom_code,
       storeName: o.store_name || `未知门店(${o.atom_code})`,
-      sellInAmount: 0,
       netRevenue: 0,
       skuCount: 0
     };
   });
 
   itemsList.forEach(it => {
-    const p = products.find(x => x.id == it.barcode);
-    if(!p) return;
-    const parsed = parseReturnHandleText(it.remark);
-
-    const qtyNum = Number(it.qty || 0);
-    const priceNum = Number(it.unit_price || 0);
-    const giftQtyNum = Number(it.gift_qty || 0);
-    const returnQtyNum = Number(parsed.qty || 0);
-
-    const row = getLiveRowAmounts(p, qtyNum, priceNum, giftQtyNum, returnQtyNum, parsed.handle);
-
-    dayTotalSale += row.saleAmount;
-    dayTotalGiftAmt += row.giftAmount;
-    if(parsed.handle === 'SCRAP') {
-      dayTotalScrapAmt += row.scrapAmount;
-      totalScrapPcs += returnQtyNum; 
-    }
-    totalGiftPcs += giftQtyNum; 
+    dayTotalSale += Number(it.amount || 0);
+    totalGiftPcs += Number(it.gift_qty || 0); 
 
     if(orderSummaryMap[it.order_no]) {
       const targetOrder = orderSummaryMap[it.order_no];
-      targetOrder.sellInAmount += row.saleAmount;
-      targetOrder.netRevenue += (row.saleAmount - row.scrapAmount);
+      targetOrder.netRevenue += Number(it.amount || 0);
       targetOrder.skuCount += 1;
     }
   });
 
-  let dayNetRevenue = dayTotalSale - dayTotalScrapAmt;
-  renderReportHtml(targetDate, dayTotalSale, dayNetRevenue, totalGiftPcs, totalScrapPcs, Object.values(orderSummaryMap));
+  renderReportHtml(targetDate, dayTotalSale, totalGiftPcs, Object.values(orderSummaryMap));
 }
 
-function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows) {
+function renderReportHtml(dateStr, netSum, totalGift, rows) {
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">📈 车销卖进数据日报</div>
+    <div class="big-store-title">📈 卖进数据</div>
     <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom:10px;'>业务员：${currentEmployee.name}</div>
     
     <div style='margin-bottom:14px; font-size:14px;'>📅 报表日期：
@@ -791,26 +687,23 @@ function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows)
     </div>
 
     <div class="amount-summary-banner" style="line-height:1.6; background:#fbf8fc;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日总实收：${netSum.toFixed(1)} 元</strong></span><br>
-      当日总销售：<strong>${saleSum.toFixed(1)} 元</strong><br>
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>当日总实收：${netSum.toFixed(2)} 元</strong></span><br>
       <div style="display:flex; gap:20px; font-size:13px; margin-top:2px; color:var(--text-muted);">
-        <span>🎁 累计赠送：<strong style="color:#1890ff;">${totalGift}</strong> 袋</span>
-        <span>🔴 累计过期损耗：<strong style="color:red;">${totalScrap}</strong> 个</span>
+        <span>🎁 累计赠送货量：<strong style="color:#1890ff;">${totalGift}</strong> 袋</span>
       </div>
     </div>
 
-    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 账单解报明细</div>
     ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下没有生成过任何客户账单</div>` : 
       rows.map(r => `
         <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
              onclick="currentStore={atom:'${r.atomCode}', name:'${r.storeName}'}; viewOrderDetail('${r.orderNo}', '${r.orderDate}', true)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
             <strong style="font-size:15px; color:var(--primary);">${r.storeName}</strong>
-            <span style="color:var(--text-muted); font-size:13px;">编辑细节 ✏️</span>
+            <span style="color:var(--text-muted); font-size:13px;">编辑账单 ✏️</span>
           </div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top:4px;">
-            <span>品项: ${r.skuCount} 种 | 总开单额: ${r.sellInAmount.toFixed(1)} 元</span><br>
-            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 应收金额：${r.netRevenue.toFixed(1)} 元</span>
+            <span>品项: ${r.skuCount} 种</span><br>
+            <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 应收金额：${r.netRevenue.toFixed(2)} 元</span>
           </div>
         </div>
       `).join('')}
@@ -834,28 +727,32 @@ function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, a
     orderData = { order_no: orderNo, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
     items.forEach(it => {
       const parsedReturn = parseReturnHandleText(it.remark);
+      const pObj = products.find(x => x.id == it.barcode) || { pcs_per_case: 24, pcs_per_box: 0 };
+      
+      let totBags = Number(it.qty || 0); 
+      let curC = Math.floor(totBags / pObj.pcs_per_case);
+      let rem = totBags % pObj.pcs_per_case;
+      let curB = pObj.pcs_per_box > 0 ? Math.floor(rem / pObj.pcs_per_box) : 0;
+      let curP = pObj.pcs_per_box > 0 ? rem % pObj.pcs_per_box : rem;
+
       orderData.items[it.barcode] = { 
-        qty: Number(it.qty || 0), price: Number(it.unit_price || 0), gift_qty: Number(it.gift_qty || 0),
+        cases: curC, boxes: curB, pcs: curP,
+        price: Number(it.unit_price || 0), gift_qty: Number(it.gift_qty || 0),
         return_qty: Number(parsedReturn.qty || 0), return_handle: parsedReturn.handle,
         showPanel: Number(parsedReturn.qty || 0) > 0 || Number(it.gift_qty || 0) > 0
       };
       
-      const pObj = products.find(x => x.id == it.barcode);
-      if(!pObj) return;
-
-      const saleBags = Number(it.qty || 0);
-      const giftBags = Number(it.gift_qty || 0);
-      const returnBags = Number(parsedReturn.qty || 0);
+      let saleBags = totBags;
+      let giftBags = Number(it.gift_qty || 0);
+      let returnBags = Number(parsedReturn.qty || 0);
       let oldNet = saleBags + giftBags;
       if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
       orderData.oldItemsMap[it.barcode] = oldNet; 
     });
-    document.getElementById('editStateBadge').classList.remove('remove');
   } else {
     const d = new Date(); 
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
-    document.getElementById('editStateBadge').classList.add('hide');
   }
 
   if (products.length > 0) {
@@ -869,27 +766,23 @@ function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, a
 }
 
 function calculateLiveOrderAmounts() {
-  let s = 0; let g = 0; let res = 0; let scr = 0;
+  let s = 0;
   let activeSKUCount = 0;
   products.forEach(p => {
     const item = orderData.items[p.id];
     if(item) {
-      if(Number(item.qty || 0) > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
+      let totBags = (item.cases * p.pcs_per_case) + (item.boxes * p.pcs_per_box) + item.pcs;
+      if(totBags > 0 || Number(item.gift_qty || 0) > 0 || Number(item.return_qty || 0) > 0) {
         activeSKUCount++;
       }
-      const rowRes = getLiveRowAmounts(p, Number(item.qty || 0), Number(item.price || 0), Number(item.gift_qty || 0), Number(item.return_qty || 0), item.return_handle);
+      const rowRes = getLiveRowAmounts(p, totBags, Number(item.price || 0));
       s += rowRes.saleAmount; 
-      g += rowRes.giftAmount; 
-      res += rowRes.restoreAmount; 
-      scr += rowRes.scrapAmount;      
     }
   });
 
-  let liveNetRevenue = s - scr;
-
   document.getElementById('liveAmountBanner').innerHTML = `
-    <span style="font-size:15px; color:var(--primary);">💵 <strong>实时预估实收：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
-    选购品项：${activeSKUCount} 款 | 销售：${s.toFixed(1)} 元 | 过期损耗扣除：${scr.toFixed(1)} 元
+    <span style="font-size:15px; color:var(--primary);">💵 <strong>实时预估实收：${s.toFixed(2)} 元</strong></span><br>
+    选购品项：${activeSKUCount} 款
   `;
 }
 
@@ -909,28 +802,43 @@ function renderOrder(){
       const defaultPriceVal = p.default_price || 15;
       const specBox = p.pcs_per_box || 0; 
       
-      const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+      const itData = orderData.items[p.id] || { cases: 0, boxes: 0, pcs: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       
       return `
         <div class='item'>
           <div class="item-main-row">
             <div class='prod-info'>
-              <div class='prod-name'>${p.product_name}</div>
+              <div class='prod-name' style="color:var(--primary); font-weight:700;">${p.product_name}</div>
               <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" onclick="toggleAfterSalePanel('${p.id}')">🔄 搭赠 / 售后退货</button>
             </div>
             
             <div class='control-group'>
               <div class="picker-wrapper">
                 <span class="label-txt">销售:</span>
-                <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
-                  ${makePureQtyOptionsHtml(100, itData.qty)}
+                <select class="ios-picker" onchange="pickerChangeCombinedQty('${p.id}', 'cases', this.value)">
+                  ${makePureQtyOptionsHtml(50, itData.cases)}
                 </select>
                 <span class="unit-txt">件</span>
               </div>
+              
+              <div class="picker-wrapper ${specBox === 0 ? 'hide' : ''}">
+                <select class="ios-picker" onchange="pickerChangeCombinedQty('${p.id}', 'boxes', this.value)">
+                  ${makePureQtyOptionsHtml(50, itData.boxes)}
+                </select>
+                <span class="unit-txt">盒</span>
+              </div>
+
               <div class="picker-wrapper">
+                <select class="ios-picker" onchange="pickerChangeCombinedQty('${p.id}', 'pcs', this.value)">
+                  ${makePureQtyOptionsHtml(100, itData.pcs)}
+                </select>
+                <span class="unit-txt">个</span>
+              </div>
+
+              <div class="picker-wrapper" style="margin-left:auto;">
                 <span class="label-txt">单价:</span>
                 <select class="ios-picker" onchange="pickerChangePrice('${p.id}', this.value)">
-                  ${makePurePriceOptionsHtml(defaultPriceVal, 1, itData.price)}
+                  ${makePurePriceOptionsHtml(defaultPriceVal, itData.price)}
                 </select>
                 <span class="unit-txt">元</span>
               </div>
@@ -972,11 +880,15 @@ function initItemState(id) {
   if(!orderData.items[id]){ 
     const p = products.find(x => x.id == id); 
     const defaultPriceVal = p.default_price || 15;
-    orderData.items[id] = { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
+    orderData.items[id] = { cases: 0, boxes: 0, pcs: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
   }
 }
 
-function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+function pickerChangeCombinedQty(id, type, value) {
+  initItemState(id);
+  orderData.items[id][type] = parseInt(value) || 0;
+  calculateLiveOrderAmounts();
+}
 
 function pickerChangePrice(id, value) { 
   initItemState(id); 
@@ -996,16 +908,16 @@ function pickerChangePrice(id, value) {
 function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 function toggleAfterSalePanel(id) { initItemState(id); orderData.items[id].showPanel = !orderData.items[id].showPanel; renderOrder(); }
-function sendBillStatus(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
 function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
 function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
 
-// 【新表适配】提交订单：对接 sales_orders 和 sales_order_items，同步更新 van_stocks
 async function submitOrder(){
   let grandTotalQty = 0;
   Object.keys(orderData.items).forEach(id => {
     const it = orderData.items[id];
-    grandTotalQty += Number(it.qty || 0) + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
+    const p = products.find(x => x.id == id) || { pcs_per_case: 24, pcs_per_box: 0 };
+    let totBags = (it.cases * p.pcs_per_case) + (it.boxes * p.pcs_per_box) + it.pcs;
+    grandTotalQty += totBags + Number(it.gift_qty || 0) + Number(it.return_qty || 0);
   });
 
   if (grandTotalQty === 0) {
@@ -1019,7 +931,6 @@ async function submitOrder(){
   try {
     let finalOrderNo = orderData.order_no;
 
-    // 自主创建新门店绑定新表 employee_store_assets
     if (isNewStoreFlow && !finalOrderNo) {
       await client.from('employee_store_assets').insert({
         employee_code: currentEmployee.code,
@@ -1039,10 +950,11 @@ async function submitOrder(){
     const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
 
     for (let id of allProdIds) {
-      const item = orderData.items[id] || { qty: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
+      const p = products.find(x => x.id == id) || { pcs_per_case: 24, pcs_per_box: 0 };
+      const item = orderData.items[id] || { cases: 0, boxes: 0, pcs: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
       const oldNetImpact = Number(orderData.oldItemsMap?.[id] || 0); 
       
-      const saleBags = Number(item.qty || 0);
+      let saleBags = (item.cases * p.pcs_per_case) + (item.boxes * p.pcs_per_box) + item.pcs;
       const giftBags = Number(item.gift_qty || 0);
       const returnBags = Number(item.return_qty || 0);
 
@@ -1053,7 +965,7 @@ async function submitOrder(){
       const finalNewStock = Number(liveStockMap[id] || 0) - delta;
 
       if (finalNewStock < 0) isStockDeficit = true;
-      if (delta !== 0 || Number(item.qty || 0) > 0 || Number(item.return_qty || 0) > 0 || Number(item.gift_qty || 0) > 0) {
+      if (delta !== 0 || saleBags > 0 || Number(item.return_qty || 0) > 0 || Number(item.gift_qty || 0) > 0) {
         stockUpdates.push({ employee_code: currentEmployee.code, product_barcode: id, qty: finalNewStock });
       }
     }
@@ -1066,17 +978,19 @@ async function submitOrder(){
       const p = products.find(x => x.id == id);
       if(!p) return;
 
-      if(Number(it.qty || 0) > 0 || Number(it.return_qty || 0) > 0 || Number(it.gift_qty || 0) > 0){ 
+      let saleBags = (it.cases * p.pcs_per_case) + (it.boxes * p.pcs_per_box) + it.pcs;
+
+      if(saleBags > 0 || Number(it.return_qty || 0) > 0 || Number(it.gift_qty || 0) > 0){ 
         const remarkString = `${it.return_qty || 0}_${it.return_handle}`;
-        const rowRes = getLiveRowAmounts(p, Number(it.qty || 0), Number(it.price || 0), Number(it.gift_qty || 0), Number(it.return_qty || 0), it.return_handle);
+        const rowRes = getLiveRowAmounts(p, saleBags, Number(it.price || 0));
         
-        const itemAmount = rowRes.saleAmount - rowRes.scrapAmount;
+        const itemAmount = rowRes.saleAmount;
         totalBillAmount += itemAmount;
 
         formattedItems.push({ 
           barcode: id, 
           product_name: p.product_name,
-          qty: Number(it.qty || 0), 
+          qty: saleBags, // 底层必须锁死最小散件数量进账
           unit_price: Number(it.price || 0), 
           gift_qty: Number(it.gift_qty || 0), 
           amount: itemAmount,
@@ -1086,13 +1000,11 @@ async function submitOrder(){
     });
 
     if (finalOrderNo) {
-      // 修改现有单据
       await client.from('sales_orders').update({ total_amount: totalBillAmount }).eq('order_no', finalOrderNo);
       await client.from('sales_order_items').delete().eq('order_no', finalOrderNo);
       formattedItems.forEach(fit => fit.order_no = finalOrderNo);
       await client.from('sales_order_items').insert(formattedItems); 
     } else {
-      // 组装随机新单号
       finalOrderNo = 'SO' + Date.now() + Math.floor(Math.random() * 1000);
       await client.from('sales_orders').insert({ 
         order_no: finalOrderNo,
@@ -1103,6 +1015,7 @@ async function submitOrder(){
         status: 'SUCCESS'
       });
       formattedItems.forEach(fit => fit.order_no = finalOrderNo);
+      // 🌟 补齐 await，阻断异步抢跑，彻底修复无法正常开单且明细为空的恶性 Bug
       await client.from('sales_order_items').insert(formattedItems); 
     }
 
@@ -1110,7 +1023,6 @@ async function submitOrder(){
     if (isStockDeficit) alert('⚠️ 账单保存成功！但该业务员车上部分口味存货出现负值，请注意及时补货。');
     
     orderData = null; 
-    document.getElementById('editStateBadge').classList.add('hide');
     openStoreHistory(currentStore.atom, currentStore.name);
 
   } catch (err) {
@@ -1121,7 +1033,6 @@ async function submitOrder(){
 }
 
 function goBack(){
-  document.getElementById('editStateBadge').classList.add('hide'); 
   if(STATE === 'STOCK' || STATE === 'REPORT' || STATE === 'NEW_STORE_MGT') {
     orderData = null;
     renderStores(); 
