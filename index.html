@@ -1,6 +1,7 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8" /><title>开单+库存</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><style>:root {
   --primary: #4A154B;        
-  --primary-hover: #360f37; \n  --accent: #ffb81c;        
+  --primary-hover: #360f37; 
+  --accent: #ffb81c;        
   --bg-main: #f4f2f5;       
   --text-main: #1f1121;     
   --text-muted: #756676;    
@@ -57,7 +58,6 @@ function formatQtyToUnits(totalPcs, specCase, specBox) {
 
 function getLiveRowAmounts(productObj, totalBags, livePrice) {
   const specCase = productObj.pcs_per_case || 24;
-  // 销售额 = 底层最小单位总数 * (单件价格 / 每箱最小件数)
   let saleAmount = totalBags * (livePrice / specCase);
   return { saleAmount };
 }
@@ -722,9 +722,16 @@ function openOrder(atom, name){
 
 function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, atom=null, name=null) {
   STATE = 'ORDER';
+  
   if(orderNo) {
     const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
     orderData = { order_no: orderNo, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
+    
+    // 1. 全量初始化，防止空插
+    products.forEach(p => {
+      orderData.items[p.id] = { cases: 0, boxes: 0, pcs: 0, price: p.default_price || 15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+    });
+
     items.forEach(it => {
       const parsedReturn = parseReturnHandleText(it.remark);
       const pObj = products.find(x => x.id == it.barcode) || { pcs_per_case: 24, pcs_per_box: 0 };
@@ -753,6 +760,11 @@ function templateEditOrNew(orderNo=null, orderDate=null, rawItemsEncoded=null, a
     const d = new Date(); 
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
+    
+    // 🌟 全量初始化核心修复：开单初始时强行激活内存所有槽位，杜绝 undefined 漂移
+    products.forEach(p => {
+      orderData.items[p.id] = { cases: 0, boxes: 0, pcs: 0, price: p.default_price || 15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+    });
   }
 
   if (products.length > 0) {
@@ -802,7 +814,8 @@ function renderOrder(){
       const defaultPriceVal = p.default_price || 15;
       const specBox = p.pcs_per_box || 0; 
       
-      const itData = orderData.items[p.id] || { cases: 0, boxes: 0, pcs: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+      // 保证一定获取到全量初始化的结构
+      const itData = orderData.items[p.id];
       
       return `
         <div class='item'>
@@ -879,8 +892,7 @@ function renderOrder(){
 function initItemState(id) {
   if(!orderData.items[id]){ 
     const p = products.find(x => x.id == id); 
-    const defaultPriceVal = p.default_price || 15;
-    orderData.items[id] = { cases: 0, boxes: 0, pcs: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
+    orderData.items[id] = { cases: 0, boxes: 0, pcs: 0, price: p.default_price || 15, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
   }
 }
 
@@ -990,7 +1002,7 @@ async function submitOrder(){
         formattedItems.push({ 
           barcode: id, 
           product_name: p.product_name,
-          qty: saleBags, // 底层必须锁死最小散件数量进账
+          qty: saleBags, 
           unit_price: Number(it.price || 0), 
           gift_qty: Number(it.gift_qty || 0), 
           amount: itemAmount,
@@ -1015,7 +1027,6 @@ async function submitOrder(){
         status: 'SUCCESS'
       });
       formattedItems.forEach(fit => fit.order_no = finalOrderNo);
-      // 🌟 补齐 await，阻断异步抢跑，彻底修复无法正常开单且明细为空的恶性 Bug
       await client.from('sales_order_items').insert(formattedItems); 
     }
 
