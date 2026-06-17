@@ -958,7 +958,7 @@ async function submitOrder(){
   }
 
   const submitBtn = document.querySelector('.float-submit');
-  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在通过原子事务保存...'; }
+  if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 正在保存...'; }
 
   try {
     let finalOrderNo = orderData.order_no;
@@ -1056,7 +1056,7 @@ async function submitOrder(){
     openStoreHistory(currentStore.atom, currentStore.name);
 
   } catch (err) {
-    console.error("提交原子异常：", err);
+    console.error("提交异常：", err);
     // 如果后台抛出异常，整个数据库回滚，此时弹窗提示，库存绝对完好如初！
     alert(`❌ 账单保存被拦截: ${err.message || '网络或事务错误'}，请重试！`);
     if(submitBtn) { submitBtn.disabled = false; submitBtn.innerText = '🚀 提交账单'; }
