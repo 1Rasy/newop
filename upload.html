@@ -126,6 +126,16 @@
     "unit_price", "discount", "total_amount"
   ];
 
+  const FIXED_IMPORT_COLUMNS = {
+    order_no: 0,
+    barcode: 6
+  };
+
+  function normalizeFixedCell(value) {
+    if (value === undefined || value === null) return "";
+    return String(value).trim();
+  }
+
   const SPECIAL_PRODUCTS_MAP = {
     "6924513908032": true,
     "6924513908001": true,
@@ -196,10 +206,16 @@
         });
         
         // 🛠️ 关键修改 2：在转换为 JSON 时指定日期格式化规范
-        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, {
           raw: false,
           dateNF: 'yyyy-mm-dd'
         });
+        const rawRowsByColumn = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1,
+          raw: false,
+          dateNF: 'yyyy-mm-dd'
+        }).slice(1);
         
         if (rawRows.length === 0) throw new Error("Excel 未包含有效数据行。");
 
@@ -209,9 +225,10 @@
         const seenKeys = new Set();
         const safePayloads = [];
 
-        rawRows.forEach(row => {
+        rawRows.forEach((row, rowIndex) => {
           let newRow = { import_batch_id: batchId, is_processed: false };
           let hasValidData = false;
+          const rowCells = rawRowsByColumn[rowIndex] || [];
 
           for (let chineseKey in row) {
             let cleanKey = chineseKey.replace(/[\s\(\)\（\）\%]/g, "");
@@ -233,6 +250,10 @@
               }
             }
           }
+
+          newRow.order_no = normalizeFixedCell(rowCells[FIXED_IMPORT_COLUMNS.order_no]);
+          newRow.barcode = normalizeFixedCell(rowCells[FIXED_IMPORT_COLUMNS.barcode]);
+          if (newRow.order_no || newRow.barcode) hasValidData = true;
           
           NUMERIC_FIELDS.forEach(numKey => {
             if (newRow[numKey] === undefined) newRow[numKey] = 0;
@@ -244,7 +265,7 @@
             newRow.is_triple_spec_direct = false;
           }
 
-          if (hasValidData && newRow.order_no && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
+          if (hasValidData && newRow.order_no && newRow.barcode && newRow.order_no !== "undefined" && newRow.order_no !== "null") {
             const uniqueKey = `${newRow.order_no}_${newRow.barcode}`;
             
             if (seenKeys.has(uniqueKey)) {
@@ -256,7 +277,7 @@
         });
 
         if (safePayloads.length === 0) {
-          throw new Error("有效行解析为0，请核对【单号】字段。");
+          throw new Error("有效行解析为0，请核对固定列：A列单号、G列条形码。");
         }
 
         statusMsg.innerText = `正在写入数据库 (${safePayloads.length}条)...`;
